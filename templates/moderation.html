@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Модерация — NewsModer{% endblock %}
+
+{% block content %}
+<h1 class="text-white fw-bold mb-4">
+    <i class="bi bi-shield-check"></i> Модерация новостей
+</h1>
+
+{% if news_list %}
+    <div class="row g-3">
+        {% for article in news_list %}
+            <div class="col-12">
+                <div class="glass-card p-3">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            {% if article.image_filename %}
+                                <img src="{{ url_for('static', filename='uploads/' + article.image_filename) }}"
+                                     class="rounded" alt="{{ article.title }}"
+                                     style="width: 80px; height: 80px; object-fit: cover;">
+                            {% else %}
+                                <div class="rounded bg-dark d-flex align-items-center justify-content-center"
+                                     style="width: 80px; height: 80px;">
+                                    <i class="bi bi-image text-white-50" style="font-size: 1.5rem;"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <h5 class="text-white mb-1">
+                                <a href="{{ url_for('view_news', id=article.id) }}" class="text-white text-decoration-none">
+                                    {{ article.title }}
+                                </a>
+                            </h5>
+                            <div class="text-white-50 small">
+                                <span class="me-3">
+                                    <i class="bi bi-person"></i> {{ article.author_name }}
+                                </span>
+                                <span class="me-3">
+                                    <i class="bi bi-tag"></i> {{ article.category_name }}
+                                </span>
+                                <span>
+                                    <i class="bi bi-calendar3"></i> {{ article.created_at[:16] }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge bg-warning text-dark">На модерации</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="glass-card p-5 text-center">
+        <i class="bi bi-check-circle text-white-50" style="font-size: 4rem;"></i>
+        <h4 class="text-white mt-3">Нет новостей на модерации</h4>
+        <p class="text-white-50">Все новости проверены!</p>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,74 @@
+    {% extends "base.html" %}
+
+{% block title %}Добавить новость — NewsModer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <h1 class="text-white fw-bold mb-4">
+                <i class="bi bi-pencil-square"></i> Добавить новость
+            </h1>
+
+            <form method="POST" enctype="multipart/form-data" novalidate>
+                {{ form.hidden_tag() }}
+
+                <!-- Заголовок -->
+                <div class="mb-3">
+                    {{ form.title.label(class="form-label text-white") }}
+                    {{ form.title(class="form-control bg-dark text-white border-0 rounded" + (" is-invalid" if form.title.errors else ""),
+                                  placeholder="Введите заголовок новости") }}
+                    {% for error in form.title.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Категория -->
+                <div class="mb-3">
+                    {{ form.category_id.label(class="form-label text-white") }}
+                    {{ form.category_id(class="form-select bg-dark text-white border-0 rounded" + (" is-invalid" if form.category_id.errors else "")) }}
+                    {% for error in form.category_id.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Текст новости -->
+                <div class="mb-3">
+                    {{ form.content.label(class="form-label text-white") }}
+                    {{ form.content(class="form-control bg-dark text-white border-0 rounded" + (" is-invalid" if form.content.errors else ""),
+                                    rows=10, placeholder="Напишите текст новости...") }}
+                    {% for error in form.content.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Изображение -->
+                <div class="mb-4">
+                    {{ form.image.label(class="form-label text-white") }}
+                    {{ form.image(class="form-control bg-dark text-white border-0 rounded" + (" is-invalid" if form.image.errors else ""),
+                                  accept="image/*") }}
+                    <div class="form-text text-white-50">
+                        Допустимые форматы: JPG, PNG, GIF, WebP. Максимальный размер: 5 МБ.
+                    </div>
+                    {% for error in form.image.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <!-- Кнопки -->
+                <div class="d-flex gap-3 flex-wrap">
+                    <button type="submit" name="submit_draft" class="btn btn-secondary btn-lg">
+                        <i class="bi bi-file-earmark"></i> Сохранить как черновик
+                    </button>
+                    <button type="submit" name="submit_moderation" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send"></i> Отправить на модерацию
+                    </button>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-lg ms-auto">
+                        <i class="bi bi-x-lg"></i> Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

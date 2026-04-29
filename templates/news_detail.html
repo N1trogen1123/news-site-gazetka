@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }} — NewsModer{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="glass-card p-4">
+            <!-- Статус (если не опубликовано) -->
+            {% if article.status != 'Опубликовано' %}
+                <div class="alert alert-{{ status_badges.get(article.status, 'secondary') }} mb-3">
+                    <i class="bi bi-info-circle"></i>
+                    Статус: <strong>{{ article.status }}</strong>
+                    {% if article.moderation_comment %}
+                        <br><small>Комментарий модератора: {{ article.moderation_comment }}</small>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Заголовок -->
+            <h1 class="text-white fw-bold mb-3">{{ article.title }}</h1>
+
+            <!-- Мета-информация -->
+            <div class="d-flex flex-wrap gap-3 mb-4 text-white-50">
+                <span>
+                    <i class="bi bi-person-circle"></i>
+                    {{ article.author_name }}
+                </span>
+                <span>
+                    <i class="bi bi-calendar3"></i>
+                    {{ article.published_at[:16] if article.published_at else article.created_at[:16] }}
+                </span>
+                <span>
+                    <i class="bi bi-tag"></i>
+                    <span class="badge bg-primary bg-opacity-75">{{ article.category_name }}</span>
+                </span>
+            </div>
+
+            <!-- Изображение -->
+            {% if article.image_filename %}
+                <div class="mb-4 text-center">
+                    <img src="{{ url_for('static', filename='uploads/' + article.image_filename) }}"
+                         class="img-fluid rounded shadow" alt="{{ article.title }}"
+                         style="max-height: 500px; object-fit: cover; width: 100%;">
+                </div>
+            {% endif %}
+
+            <!-- Текст новости -->
+            <div class="text-white news-content" style="white-space: pre-wrap; line-height: 1.8;">{{ article.content }}</div>
+
+            <!-- Назад -->
+            <div class="mt-4 pt-3 border-top border-secondary d-flex align-items-center">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-light">
+                    <i class="bi bi-arrow-left"></i> Назад к новостям
+                </a>
+                {% if current_user.is_authenticated and current_user.id == article.author_id %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary ms-2">
+                        <i class="bi bi-file-earmark-text"></i> Мои статьи
+                    </a>
+                {% endif %}
+            </div>
+
+            <!-- Панель модератора -->
+            {% if moderation_form %}
+                <div class="card bg-dark border-warning mt-4 glass-card">
+                    <div class="card-header border-warning text-warning fw-bold">
+                        <i class="bi bi-shield-exclamation"></i> Решение модератора
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('moderate_news', id=article.id) }}">
+                            {{ moderation_form.hidden_tag() }}
+                            <div class="mb-3">
+                                <label for="comment" class="form-label text-white-50">Комментарий (необязательно, но желательно при отклонении)</label>
+                                {{ moderation_form.comment(class="form-control bg-dark text-white border-secondary", rows="3", placeholder="Укажите причину, если отклоняете...") }}
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" name="submit_approve" value="1" class="btn btn-success">
+                                    <i class="bi bi-check-circle"></i> Одобрить и опубликовать
+                                </button>
+                                <button type="submit" name="submit_reject" value="1" class="btn btn-danger">
+                                    <i class="bi bi-x-circle"></i> Отклонить
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

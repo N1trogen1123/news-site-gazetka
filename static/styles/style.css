@@ -7,6 +7,8 @@ body {
     margin: 0;
     padding: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    color: #fff;
 }
 
 body::before {
@@ -20,25 +22,143 @@ body::before {
     z-index: -1;
 }
 
-.container, .card, .navbar {
-    background-color: rgba(255, 255, 255, 0.95);
-    border-radius: 10px;
-    backdrop-filter: blur(2px);
-}
-
-.navbar-custom {
-    border-radius: 12px !important;
-}
-
-.col-md-6 {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-
+/* ─── Навбар ─── */
 .navbar {
-    border-radius: 30px !important;
-    margin: 10px 20px !important;
+    background: rgba(30, 30, 50, 0.85) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px !important;
+    margin: 12px 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    z-index: 1050;
+}
+
+.navbar-brand {
+    font-size: 1.3rem;
+}
+
+.nav-link {
+    transition: color 0.2s ease, background 0.2s ease;
+    border-radius: 8px;
+    padding: 6px 12px !important;
+}
+
+.nav-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Стеклянная карточка (общий стиль) ─── */
+.glass-card {
+    background: rgba(40, 40, 65, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Карточки новостей ─── */
+.card.news-card {
+    background: rgba(40, 40, 65, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card.news-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.news-card-img {
+    height: 200px;
+    object-fit: cover;
+}
+
+.news-card-img-placeholder {
+    height: 200px;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.card-body {
+    background: transparent;
+}
+
+/* ─── Карточки авторизации (login/register) ─── */
+.card.bg-secondary {
+    background: rgba(40, 40, 65, 0.8) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Контейнер ─── */
+.container {
+    background: transparent;
+}
+
+/* ─── Форм-элементы ─── */
+.form-control,
+.form-select {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 3px rgba(99, 132, 255, 0.3);
+    border-color: rgba(99, 132, 255, 0.5);
+}
+
+/* ─── Кнопки ─── */
+.btn {
+    border-radius: 10px;
+    font-weight: 500;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:active {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5a6fd6 0%, #6a4294 100%);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* ─── Бэджи статусов ─── */
+.badge {
+    font-weight: 500;
+    padding: 5px 10px;
+    border-radius: 8px;
+}
+
+/* ─── Алерты ─── */
+.alert {
+    border-radius: 12px;
+    border: none;
+}
+
+/* ─── Footer ─── */
+footer {
+    background: transparent;
+}
+
+/* ─── Адаптивность ─── */
+@media (max-width: 768px) {
+    .navbar {
+        margin: 8px 10px !important;
+        border-radius: 12px !important;
+    }
 }
