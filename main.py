@@ -1,422 +1,156 @@
 import os
-import sqlite3
-import uuid
-from datetime import datetime
+import datetime
 
 from flask import Flask, request, redirect, render_template, url_for, abort, flash
-from flask_login import LoginManager, login_user, current_user, logout_user, login_required, UserMixin
-from werkzeug.security import check_password_hash, generate_password_hash
+from flask_login import LoginManager, login_user, current_user, logout_user, login_required
+from sqlalchemy import or_
 
+from werkzeug.utils import secure_filename
+
+from data import db_session
 from data.users import User
+from data.news import News
+from data.categories import Categories
+from data.moderation_logs import ModerationLogs
 from forms.LoginForm import LoginForm
 from forms.Newsform import NewsForm
 from forms.RegisterForm import RegisterForm
 from forms.ModerationForm import ModerationForm
-from forms.CategoryForm import CategoryForm
 
 app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view ='login'
-login_manager.login_message = 'Пожалуйста, войдите в аккаунт для доступа к этой странице.'
 app.secret_key = 'your-secret-key-here'
 
-UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
-ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-DB_PATH = os.path.join(app.root_path,'db', 'news.db')
+# Настройка загрузки файлов
+app.config['UPLOAD_FOLDER'] = 'static/uploads/news'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
+db_session.global_init("db/news.db")
 
-#  Модель пользователя для flask-login
-class User(UserMixin):
-    def __init__(self, id, username, email, hashed_password, level, is_banned, created_at=None):
-        self.id = id
-        self.username = username
-        self.email = email
-        self.hashed_password = hashed_password
-        self.level = level
-        self.is_banned = is_banned
-        self.created_at = created_at
-
-# Работа с БД
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
-
-# Инициализация всех таблиц.
-def init_db():
-    conn = get_db()
-    conn.executescript('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
-                email TEXT NOT NULL UNIQUE,
-                hashed_password TEXT NOT NULL,
-                level TEXT NOT NULL DEFAULT 'user',
-                is_banned INTEGER NOT NULL DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS categories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE
-            );
-
-            CREATE TABLE IF NOT EXISTS news (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                content TEXT NOT NULL,
-                author_id INTEGER NOT NULL,
-                category_id INTEGER NOT NULL,
-                status TEXT NOT NULL DEFAULT 'Черновик',
-                moderation_comment TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                published_at TIMESTAMP,
-                image_filename TEXT,
-                FOREIGN KEY (author_id) REFERENCES users(id),
-                FOREIGN KEY (category_id) REFERENCES categories(id)
-            );
-
-            CREATE TABLE IF NOT EXISTS moderation_logs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                news_id INTEGER NOT NULL,
-                moderator_id INTEGER NOT NULL,
-                action TEXT NOT NULL,
-                comment TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (news_id) REFERENCES news(id),
-                FOREIGN KEY (moderator_id) REFERENCES users(id)
-            );
-        ''')
-    # Категории по умолчанию
-    cursor = conn.execute("SELECT COUNT(*) FROM categories")
-    if cursor.fetchone()[0] == 0:
-        default_categories = [
-            'Политика', 'Экономика', 'Технологии',
-            'Спорт', 'Культура', 'Наука', 'Общество'
-        ]
-        conn.executemany(
-            "INSERT INTO categories (name) VALUES (?)",
-            [(c,) for c in default_categories]
-        )
-    conn.commit()
-    conn.close()
-
-
-# Инициализируем БД при запуске
-init_db()
-
-# Получение список всех категорий
-def get_categories():
-    conn = get_db()
-    categories = conn.execute("SELECT id, name FROM categories ORDER BY name").fetchall()
-    conn.close()
-    return categories
-
-# Поиск пользователя по ID
-def get_user_by_id(user_id):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
-        (user_id,)
-    ).fetchone()
-    conn.close()
-    if row:
-        return User(
-            id=row['id'],
-            username=row['username'],
-            email=row['email'],
-            hashed_password=row['hashed_password'],
-            level=row['level'],
-            is_banned=row['is_banned'],
-            created_at=row['created_at'],
-        )
-    return None
-
-# Поиск пользователя по почте
-def get_user_by_email(email):
-    conn = get_db()
-    row = conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-    conn.close()
-    if row:
-        return User(
-            id=row['id'],
-            username=row['username'],
-            email=row['email'],
-            hashed_password=row['hashed_password'],
-            level=row['level'],
-            is_banned=row['is_banned'],
-            created_at=row['created_at'],
-        )
-    return None
-
-#Проверка допустимоего расширения файла
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# Сохранения зигруженого изображения, вернуть имя файла
-def save_image(file):
-    if file and file.filename and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{uuid.uuid4().hex}.{ext}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        return filename
-    return None
-
-STATUS_BADGES = {
-    'Черновик': 'secondary',
-    'На модерации': 'warning',
-    'Опубликовано': 'success',
-    'Отклонено': 'danger',
-}
-
-@app.context_processor
-def inject_helpers():
-    return dict(status_badges=STATUS_BADGES)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return get_user_by_id(int(user_id))
+    db_sess = db_session.create_session()
+    try:
+        return db_sess.get(User, user_id)
+    finally:
+        db_sess.close()
 
-# Главная страница - опубликованные новости
+
 @app.route('/')
 def index():
-    search_query = request.args.get('q', '').strip()
-    category_id = request.args.get('category', '', type=str)
-    conn = get_db()
-    sql = """
-        SELECT n.*, c.name AS category_name, u.username AS author_name
-        FROM news n
-        JOIN categories c ON n.category_id = c.id
-        JOIN users u ON n.author_id = u.id
-        WHERE n.status = 'Опубликовано'
-    """
-    params = []
-    if search_query:
-        sql += " AND (n.title LIKE ? OR n.content LIKE ?)"
-        like_pattern = f"%{search_query}%"
-        params.extend([like_pattern, like_pattern])
-    if category_id and category_id.isdigit():
-        sql += " AND n.category_id = ?"
-        params.append(int(category_id))
-    sql += " ORDER BY n.published_at DESC, n.created_at DESC"
-    news_list = conn.execute(sql, params).fetchall()
-    categories = get_categories()
-    conn.close()
-    return render_template('index.html',
-                           news_list=news_list,
-                           categories=categories,
-                           search_query=search_query,
-                           selected_category=category_id)
+    """Главная страница со списком новостей"""
+    db_sess = db_session.create_session()
+    try:
+        # Получаем параметры поиска и фильтрации
+        search_query = request.args.get('q', '')
+        selected_category = request.args.get('category', '')
 
-# Просмотр новости
-@app.route('/news/<int:id>')
-def view_news(id):
-    conn = get_db()
-    article = conn.execute("""
-     SELECT n.*, c.name AS category_name, u.username AS author_name
-        FROM news n
-        JOIN categories c ON n.category_id = c.id
-        JOIN users u ON n.author_id = u.id
-        WHERE n.id = ?
-        """, (id,)).fetchone()
-    conn.close()
-    if not article:
-        abort(404)
-    # Неопубликованные новости видны только автору и модератору/админу
-    if article['status'] != 'Опубликовано':
-        if not current_user.is_authenticated:
-            abort(404)
-        if (article['author_id'] != current_user.id and
-                current_user.level not in ('moderator', 'admin')):
-            abort(404)
-    moderation_form = None
-    if current_user.is_authenticated and current_user.level in ('moderator', 'admin') and article[
-        'status'] == 'На модерации':
-        moderation_form = ModerationForm()
-    return render_template('news_detail.html', article=article, moderation_form=moderation_form)
+        # Базовый запрос
+        query = db_sess.query(News)
 
-@app.route('/news/<int:id>/moderte', methods=['POST'])
-@login_required
-def moderate_news(id):
-    if current_user.level not in ('moderator', 'admin'):
-        abort(403)
-    form = ModerationForm()
-    if form.validate_on_submit():
-        action = 'Одобрено' if form.submit_approve.data else 'Отклонено'
-        new_status = 'Опубликовано' if action == 'Одобрено' else 'Отклонено'
-        comment = form.comment.data.strip() if form.comment.data else None
-        published_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S') if action == 'Одобрено' else None
-        conn = get_db()
-        try:
-            if action == 'Одобрено':
-                conn.execute("""
-                    UPDATE news 
-                    SET status = ?, moderation_comment = ?, published_at = ?
-                    WHERE id = ?
-                """, (new_status, comment, published_at, id))
-            else:
-                conn.execute("""
-                    UPDATE news 
-                    SET status = ?, moderation_comment = ?
-                    WHERE id = ?
-                """, (new_status, comment, id))
-            conn.execute("""
-                INSERT INTO moderation_logs (news_id, moderator_id, action, comment)
-                VALUES (?, ?, ?, ?)
-            """, (id, current_user.id, action, comment))
-            conn.commit()
-            flash(f'Новость успешно {"одобрена" if action == "Одобрено" else "отклонена"}!', 'success')
-        except Exception as e:
-            conn.rollback()
-            flash(f'Ошибка: {str(e)}', 'danger')
-        finally:
-            conn.close()
-    return redirect(url_for('view_news', id=id))
+        # Фильтрация по категории
+        if selected_category and selected_category.isdigit():
+            query = query.filter(News.category_id == int(selected_category))
 
-# Добавление новости
-@app.route('/news/add', methods=['GET', 'POST'])
-@login_required
-def add_news():
-    # Проверка на бан
-    if current_user.is_banned:
-        flash('Вы заблокированы и не можете создавать новости.', 'danger')
-        return redirect(url_for('index'))
-    form = NewsForm()
-    form.category_id.choices = [(c['id'], c['name']) for c in get_categories()]
-    if form.validate_on_submit():
-        # Определяем статус по нажатой кнопке
-        status = 'Черновик'
-        if 'submit_moderation' in request.form:
-            status = 'На модерации'
-        # Сохраняем изображение
-        image_filename = None
-        if form.image.data:
-            image_filename = save_image(form.image.data)
-        conn = get_db()
-        conn.execute("""
-                INSERT INTO news (title, content, author_id, category_id, status,
-                                  created_at, image_filename)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-            form.title.data,
-            form.content.data,
-            current_user.id,
-            form.category_id.data,
-            status,
-            datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            image_filename,
-        ))
-        conn.commit()
-        conn.close()
-        if status == 'На модерации':
-            flash('Новость отправлена на модерацию!', 'info')
-        else:
-            flash('Черновик сохранён!', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('add_news.html', form=form)
+        # Поиск по заголовку и содержимому
+        if search_query:
+            query = query.filter(
+                or_(
+                    News.title.contains(search_query),
+                    News.content.contains(search_query)
+                )
+            )
 
-# Личный кабинет (Мои новости)
+        # Сортировка по дате (сначала новые) и только опубликованные
+        news_list = query.filter(News.status == 'Опубликовано').order_by(News.published_at.desc()).all()
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    conn = get_db()
-    news_list = conn.execute("""
-        SELECT n.*, c.name AS category_name
-        FROM news n
-        JOIN categories c ON n.category_id = c.id
-        WHERE n.author_id = ?
-        ORDER BY n.created_at DESC
-        """, (current_user.id,)).fetchall()
-    conn.close()
-    return render_template('dashboard.html', news_list=news_list)
+        # Получаем все категории для фильтра
+        categories = db_sess.query(Categories).all()
 
-# Модерация
-@app.route('/moderation')
-@login_required
-def moderation():
-    if current_user.level not in ('moderator', 'admin'):
-        abort(403)
-    conn = get_db()
-    news_list = conn.execute("""
-        SELECT n.*, c.name AS category_name, u.username AS author_name
-        FROM news n
-        JOIN categories c ON n.category_id = c.id
-        JOIN users u ON n.author_id = u.id
-        WHERE n.status = 'На модерации'
-        ORDER BY n.created_at ASC
-    """).fetchall()
-    conn.close()
-    return render_template('moderation.html', news_list=news_list)
+        # Для каждой новости добавляем имя автора и категории
+        for news in news_list:
+            # Получаем автора
+            author = db_sess.query(User).filter(User.id == news.author_id).first()
+            news.author_name = author.username if author else 'Неизвестный автор'
 
-# Авторизация
+            # Получаем категорию
+            category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
+            news.category_name = category.name if category else 'Без категории'
+
+        return render_template('index.html',
+                               news_list=news_list,
+                               categories=categories,
+                               search_query=search_query,
+                               selected_category=selected_category,
+                               current_user=current_user)
+    finally:
+        db_sess.close()
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
+
     form = LoginForm()
     if form.validate_on_submit():
-        user = get_user_by_email(form.email.data)
-        if user and check_password_hash(user.hashed_password, form.password.data):
-            login_user(user, remember=form.remember_me.data)
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('index'))
-        else:
+        db_sess = db_session.create_session()
+        try:
+            user = db_sess.query(User).filter(User.email == form.email.data).first()
+
+            if user and user.check_password(form.password.data):
+                login_user(user, remember=form.remember_me.data)
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('index'))
+            else:
+                return render_template('login.html',
+                                       message="Неправильный логин или пароль",
+                                       form=form)
+        except Exception:
             return render_template('login.html',
-                                   message="Неправильный логин или пароль",
+                                   message="Произошла ошибка при авторизации",
                                    form=form)
+        finally:
+            db_sess.close()
     return render_template('login.html', title='Авторизация', form=form)
 
-# Регистрация
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        # Проверяем, не занят ли email
-        existing = get_user_by_email(form.email.data)
-        if existing:
-            return render_template('register.html',
-                                   form=form,
-                                   message='Пользователь с такой электронной почтой уже зарегистрирован')
-        # Хэшируем пароль
-        hashed_pw = generate_password_hash(form.password.data)
-        conn = get_db()
+        db_sess = db_session.create_session()
         try:
-            conn.execute("""
-                    INSERT INTO users (username, email, hashed_password, level, is_banned, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (
-                form.username.data,
-                form.email.data,
-                hashed_pw,
-                'user',
-                0,
-                datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            ))
-            conn.commit()
-            # Загружаем только что созданного пользователя и логиним
-            user = get_user_by_email(form.email.data)
+            user = db_sess.query(User).filter(User.email == form.email.data).first()
+            if user:
+                return render_template('register.html',
+                                       form=form,
+                                       message='Пользователь с такой электронной почтой уже зарегистрирован')
+
+            user = User()
+            user.email = form.email.data
+            user.username = form.username.data
+            user.set_password(form.password.data)
+            user.level = 'user'
+            user.create_time = datetime.datetime.now()
+            user.is_banned = 0
+
+            db_sess.add(user)
+            db_sess.commit()
+
             login_user(user)
-            flash('Регистрация прошла успешно!', 'success')
             return redirect(url_for('index'))
+
         except Exception as e:
-            conn.rollback()
-            return render_template('register.html',
-                                   form=form,
-                                   message=f'Ошибка при регистрации: {str(e)}')
+            db_sess.rollback()
+            return f"ОШИБКА: {str(e)}", 500
         finally:
-            conn.close()
+            db_sess.close()
+
     return render_template('register.html', form=form)
 
-#Выход
 
 @app.route('/logout')
 @login_required
@@ -424,6 +158,340 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
+
+@app.route('/add_news', methods=['GET', 'POST'])
+def add_news():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login'))
+
+    if current_user.is_banned == 1:
+        abort(403)
+
+    form = NewsForm()
+    db_sess = db_session.create_session()
+    try:
+        categories = db_sess.query(Categories).all()
+        form.category_id.choices = [(c.id, c.name) for c in categories]
+
+        if form.validate_on_submit():
+
+            existing_news = db_sess.query(News).filter(News.title == form.title.data).first()
+            if existing_news:
+                return render_template('add_news.html', form=form, message='Такая новость уже есть')
+
+            news = News()
+            news.title = form.title.data
+            news.content = form.content.data
+            news.author_id = current_user.id
+            news.category_id = form.category_id.data
+
+            if 'sa' in request.form:
+                news.status = 'Черновик'
+            elif 'submit' in request.form:
+                if current_user.level == 'moderator' or current_user.level == 'admin':
+                    news.status = 'Опубликовано'
+                else:
+                    news.status = 'На проверке'
+
+            news.created_at = datetime.datetime.now()
+            news.published_at = datetime.datetime.now()
+
+            # Обработка изображения
+            if form.image.data and form.image.data.filename:
+                image_file = form.image.data
+                filename = secure_filename(image_file.filename)
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{filename}"
+
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                image_file.save(file_path)
+                news.image_filename = f"uploads/news/{filename}"
+            else:
+                news.image_filename = 'images/default.png'
+
+            db_sess.add(news)
+            db_sess.commit()
+
+            # Перенаправляем с сообщением об успехе
+            if news.status == 'Черновик':
+                return redirect(url_for('dashboard'))
+            else:
+                return redirect(url_for('index'))
+
+    except Exception as e:
+        db_sess.rollback()
+        print(f"Ошибка: {e}")
+        return render_template('add_news.html', form=form, message='Ошибка при сохранении новости')
+    finally:
+        db_sess.close()
+
+    return render_template('add_news.html', form=form)
+
+
+@app.route('/news/<int:id>')
+def view_news(id):
+    """Просмотр отдельной новости"""
+    form = ModerationForm()
+    db_sess = db_session.create_session()
+    try:
+        news = db_sess.query(News).filter(News.id == id).first()
+        if not news:
+            return "Новость не найдена", 404
+
+        author = db_sess.query(User).filter(User.id == news.author_id).first()
+        news.author_name = author.username if author else 'Неизвестный автор'
+
+        category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
+        news.category_name = category.name if category else 'Без категории'
+
+        return render_template('view_news.html', news=news, current_user=current_user, form=form)
+    finally:
+        db_sess.close()
+
+
+@app.route('/moderation')
+@login_required
+def moderation():
+    """Страница модерации новостей"""
+    # Проверяем права доступа
+    if current_user.level not in ['moderator', 'admin'] or current_user.is_banned == 0:
+        abort(403)
+
+    db_sess = db_session.create_session()
+    try:
+        # Получаем новости на проверке
+        news_list = db_sess.query(News).filter(News.status == 'На проверке').all()
+
+        for article in news_list:
+            author = db_sess.query(User).filter(User.id == article.author_id).first()
+            article.author_name = author.username if author else 'Неизвестный автор'
+
+            category = db_sess.query(Categories).filter(Categories.id == article.category_id).first()
+            article.category_name = category.name if category else 'Без категории'
+
+        return render_template('moderation.html', news_list=news_list, current_user=current_user)
+    finally:
+        db_sess.close()
+
+
+@app.route('/moderate/<int:id>/<action>/')
+@login_required
+def moderate_news(id, action, comment='Причина не указана'):
+    """Обработка модерации новости (одобрение/отклонение)"""
+    if current_user.level not in ['moderator', 'admin']:
+        abort(403)
+
+    db_sess = db_session.create_session()
+    try:
+        news = db_sess.query(News).filter(News.id == id).first()
+        if not news:
+            abort(404)
+
+        if news.status != 'На проверке':
+            return redirect(url_for('moderation'))
+
+        if action == 'approve':
+            news.status = 'Опубликовано'
+            message = f"Новость '{news.title}' одобрена"
+        elif action == 'reject':
+            news.status = 'Отклонено'
+            message = f"Новость '{news.title}' отклонена"
+        else:
+            abort(400)
+
+        log = ModerationLogs()
+        log.news_id = id
+        log.moderator_id = current_user.id
+        log.action = action
+        log.comment = comment
+        log.timestamp = datetime.datetime.now()
+        db_sess.add(log)
+
+        db_sess.commit()
+        flash(message, 'success')
+
+        return redirect(url_for('moderation'))
+    except Exception as e:
+        db_sess.rollback()
+        print(f"Ошибка при модерации: {e}")
+        flash(f'Ошибка при модерации: {str(e)}', 'danger')
+        return redirect(url_for('moderation'))
+    finally:
+        db_sess.close()
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Дашборд пользователя"""
+    db_sess = db_session.create_session()
+    try:
+        news_list = db_sess.query(News).filter(News.author_id == current_user.id).all()
+
+        for news in news_list:
+            category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
+            news.category_name = category.name if category else 'Без категории'
+
+        status_badges = {
+            'Черновик': 'bg-secondary',
+            'На проверке': 'bg-warning',
+            'Опубликовано': 'bg-success',
+            'Отклонено': 'bg-danger'
+        }
+
+        return render_template('dashboard.html',
+                               news_list=news_list,
+                               status_badges=status_badges,
+                               current_user=current_user)
+    finally:
+        db_sess.close()
+
+
+@app.route('/moderation/<int:id>', methods=['GET', 'POST'])
+def moderate_news_id(id):
+    db = db_session.create_session()
+    article = db.get(News, id)
+
+    # Проверка прав модератора
+    if not current_user.is_authenticated or current_user.is_banned == 1 or not (current_user.level == 'moderator' or current_user.level == 'admin'):
+        flash('Доступ запрещен', 'danger')
+        return redirect(url_for('index'))
+
+    # Только новости на проверке можно модерировать
+    if article.status != 'На проверке':
+        flash('Эта новость уже была проверена', 'warning')
+        return redirect(url_for('view_news', id=article.id))
+
+    form = ModerationForm()
+
+    if form.validate_on_submit():
+        comment = form.comment.data.strip()
+
+        if form.submit_approve.data:
+            article.status = 'Опубликовано'
+            article.published_at = datetime.datetime.now()
+            article.moderation_comment = comment if comment else None
+            flash('Новость одобрена и опубликована', 'success')
+
+        elif form.submit_reject.data:
+            article.status = 'Отклонено'
+            article.moderation_comment = comment if comment else 'Отклонено без указания причины'
+            flash('Новость отклонена', 'warning')
+
+        article.moderated_at = datetime.datetime.now()
+        article.moderated_by = current_user.id
+        db.commit()
+
+        return redirect(url_for('moderation'))
+
+    return render_template('view_news.html', news=article, form=form)
+
+
+@app.route('/edit_news/<int:id>', methods=['GET', 'POST'])
+def edit_news(id):
+    db_sess = db_session.create_session()
+    news = db_sess.query(News).get(id)
+    form = NewsForm()
+
+    categories = db_sess.query(Categories).all()
+    form.category_id.choices = [(c.id, c.name) for c in categories]
+    if request.method == 'GET':
+        form.title.data = news.title
+        form.content.data = news.content
+        form.category_id.data = news.category_id
+
+    if not news:
+        abort(404)
+
+    if not ((current_user.level == 'moderator' or current_user.level == 'admin') or (news.author_id == current_user.id)) or (current_user.is_banned == 1):
+        abort(403)
+
+
+    if form.validate_on_submit():
+        existing_news = db_sess.query(News).filter(
+            News.title == form.title.data,
+            News.id != id
+        ).first()
+
+        if existing_news:
+            return render_template('edit_news.html', form=form, news=news,
+                                   message='Такая новость уже есть')
+
+        news.title = form.title.data
+        news.content = form.content.data
+        news.category_id = form.category_id.data
+
+        if 'sa' in request.form:
+            news.status = 'Черновик'
+        elif 'submit' in request.form:
+            if 'submit' in request.form and (current_user.level in ['admin', 'moderator']):
+                news.status = 'Опубликовано'
+            else:
+                news.status = 'На проверке'
+
+        news.updated_at = datetime.datetime.now()
+
+        if form.image.data and form.image.data.filename:
+            image_file = form.image.data
+            filename = secure_filename(image_file.filename)
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"{timestamp}_{filename}"
+
+            if news.image_filename and news.image_filename != 'image/default.jpg':
+                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'],
+                                              news.image_filename.replace('uploads/news/', ''))
+                if os.path.exists(old_image_path):
+                    os.remove(old_image_path)
+
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            image_file.save(file_path)
+            news.image_filename = f"uploads/news/{filename}"
+
+        db_sess.commit()
+
+        if news.status == 'Черновик':
+            return redirect(url_for('dashboard'))
+        else:
+            return redirect(url_for('index'))
+
+    return render_template('edit_news.html', form=form, news=news)
+
+
+@app.route('/news/<int:id>/delete', methods=['GET', 'POST'])
+@login_required
+def delete_news(id):
+    db_sess = db_session.create_session()
+    news = db_sess.get(News, id)
+
+    if not news:
+        flash('Новость не найдена', 'danger')
+        return redirect(url_for('index'))
+
+    if current_user.id != news.author_id and current_user.level not in ['admin', 'moderator'] or (current_user.is_banned == 1):
+        flash('У вас нет прав на удаление этой новости', 'danger')
+        return redirect(url_for('news_detail', id=id))
+
+    try:
+        logs = db_sess.query(ModerationLogs).filter(ModerationLogs.news_id == id).all()
+
+        for log in logs:
+            db_sess.delete(log)
+
+        db_sess.delete(news)
+        db_sess.commit()
+        flash('Новость успешно удалена', 'success')
+    except Exception as e:
+        db_sess.rollback()
+        flash('Ошибка при удалении новости', 'danger')
+        print(f"Error deleting news: {e}")
+    finally:
+        db_sess.close()
+
+    return redirect(url_for('index'))
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    return "В разработке"
 
 
 if __name__ == '__main__':
