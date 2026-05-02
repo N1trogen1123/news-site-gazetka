@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ news.title }} — NewsModer{% endblock %}
+
+{% block content %}
+<!-- Навигация -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+            <a href="{{ url_for('index') }}" class="text-white-50 text-decoration-none">Главная</a>
+        </li>
+        <li class="breadcrumb-item active text-white-50">{{ news.title|truncate(50) }}</li>
+    </ol>
+</nav>
+
+<!-- Заголовок -->
+<h1 class="text-white fw-bold mb-3">{{ news.title }}</h1>
+
+<!-- Мета-информация -->
+<div class="d-flex flex-wrap gap-3 mb-4 pb-2 border-bottom border-secondary">
+    <div class="text-white-50"><i class="bi bi-person-circle"></i> <span class="ms-1">{{ news.author_name }}</span></div>
+    <div class="text-white-50"><i class="bi bi-tag"></i> <span class="ms-1">{{ news.category_name }}</span></div>
+    <div class="text-white-50">
+        <i class="bi bi-calendar3"></i>
+        <span class="ms-1">
+            {% if news.published_at %}{{ news.published_at.strftime('%d.%m.%Y %H:%M') }}
+            {% elif news.created_at %}{{ news.created_at.strftime('%d.%m.%Y %H:%M') }}
+            {% else %}Дата не указана{% endif %}
+        </span>
+    </div>
+    <div>
+        <span class="badge {% if news.status == 'Черновик' %}bg-secondary{% elif news.status == 'На проверке' %}bg-warning text-dark{% elif news.status == 'Опубликовано' %}bg-success{% elif news.status == 'Отклонено' %}bg-danger{% else %}bg-info{% endif %}">
+            {{ news.status }}
+        </span>
+    </div>
+</div>
+
+<!-- Изображение -->
+<div class="text-center mb-4">
+    <img src="{{ url_for('static', filename=news.image_filename) }}" class="img-fluid rounded" alt="{{ news.title }}">
+</div>
+
+<!-- Содержание -->
+<div class="mb-4 news-content text-white">{{ news.content|safe }}</div>
+
+<!-- Кнопка удаления -->
+{% if current_user.is_authenticated and (current_user.id == news.author_id or current_user.level in ['admin', 'moderator']) %}
+<div class="d-flex gap-2 mb-4">
+    <a href="{{ url_for('delete_news', id=news.id) }}" class="btn btn-outline-danger" onclick="return confirm('Вы уверены?')"><i class="bi bi-trash"></i> Удалить</a>
+    <a href="{{ url_for('edit_news', id=news.id) }}" class="btn btn-outline-warning"><i class="bi bi-pen"></i> Редактировать</a>
+</div>
+{% endif %}
+
+
+<!-- Форма модерации -->
+{% if current_user.is_authenticated and current_user.level in ['moderator', 'admin'] and news.status == 'На проверке' %}
+<div class="moderation-card mt-4">
+    <div class="moderation-card-header"><h5><i class="bi bi-shield-check"></i> Модерация новости</h5></div>
+    <div class="moderation-card-body">
+        <form method="POST" action="{{ url_for('moderate_news_id', id=news.id) }}">
+            {{ form.hidden_tag() }}
+            <div class="mb-3">
+                {{ form.comment.label(class="form-label") }}
+                {{ form.comment(class="form-control", rows="3", placeholder="Укажите причину одобрения или отклонения") }}
+                <small><i class="bi bi-info-circle"></i> Максимум 500 символов. Комментарий будет виден автору новости.</small>
+                {% for error in form.comment.errors %}<div class="text-danger mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="d-flex gap-2">
+                {{ form.submit_approve(class="btn btn-success") }}
+                {{ form.submit_reject(class="btn btn-danger") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

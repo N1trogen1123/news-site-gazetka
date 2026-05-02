@@ -1,4 +1,4 @@
-    {% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Добавить новость — NewsModer{% endblock %}
 
@@ -9,6 +9,12 @@
             <h1 class="text-white fw-bold mb-4">
                 <i class="bi bi-pencil-square"></i> Добавить новость
             </h1>
+
+            {% if message %}
+                <div class="alert alert-danger" role="alert">
+                    {{ message }}
+                </div>
+            {% endif %}
 
             <form method="POST" enctype="multipart/form-data" novalidate>
                 {{ form.hidden_tag() }}
@@ -57,11 +63,11 @@
 
                 <!-- Кнопки -->
                 <div class="d-flex gap-3 flex-wrap">
-                    <button type="submit" name="submit_draft" class="btn btn-secondary btn-lg">
+                    <button type="submit" name="sa" class="btn btn-secondary btn-lg">
                         <i class="bi bi-file-earmark"></i> Сохранить как черновик
                     </button>
-                    <button type="submit" name="submit_moderation" class="btn btn-primary btn-lg">
-                        <i class="bi bi-send"></i> Отправить на модерацию
+                    <button type="submit" name="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-send"></i> Отправить на проверку
                     </button>
                     <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-lg ms-auto">
                         <i class="bi bi-x-lg"></i> Отмена

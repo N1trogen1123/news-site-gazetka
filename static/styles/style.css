@@ -155,6 +155,105 @@ footer {
     background: transparent;
 }
 
+
+.news-content {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    line-height: 1.6;
+}
+
+
+/* ─── Форма модерации (стиль как у navbar) ─── */
+.moderation-card {
+    background: rgba(30, 30, 50, 0.85) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.moderation-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+.moderation-card-header {
+    background: rgba(30, 30, 50, 0.5);
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.moderation-card-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.moderation-card-body {
+    padding: 1.25rem;
+}
+
+/* ─── Поля ввода (стиль как у navbar) ─── */
+.moderation-card .form-control,
+.moderation-card .form-select {
+    background: rgba(20, 20, 35, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: #fff;
+    transition: all 0.2s ease;
+}
+
+.moderation-card .form-control:focus,
+.moderation-card .form-select:focus {
+    background: rgba(20, 20, 35, 0.8);
+    border-color: rgba(102, 126, 234, 0.5);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+    color: #fff;
+    outline: none;
+}
+
+.moderation-card .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.moderation-card .form-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.moderation-card small,
+.moderation-card .form-text {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+}
+
+.moderation-card small i,
+.moderation-card .form-text i {
+    margin-right: 4px;
+}
+
+/* ─── Кнопки в форме модерации ─── */
+.moderation-card .btn {
+    border-radius: 10px;
+    font-weight: 500;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    padding: 8px 20px;
+}
+
+.moderation-card .btn:active {
+    transform: scale(0.97);
+}
+
 /* ─── Адаптивность ─── */
 @media (max-width: 768px) {
     .navbar {

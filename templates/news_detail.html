@@ -39,7 +39,7 @@
             <!-- Изображение -->
             {% if article.image_filename %}
                 <div class="mb-4 text-center">
-                    <img src="{{ url_for('static', filename='uploads/' + article.image_filename) }}"
+                    <img src="{{ url_for('static', filename=article.image_filename) }}"
                          class="img-fluid rounded shadow" alt="{{ article.title }}"
                          style="max-height: 500px; object-fit: cover; width: 100%;">
                 </div>

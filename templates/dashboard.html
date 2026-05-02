@@ -20,15 +20,10 @@
                     <div class="row align-items-center">
                         <!-- Миниатюра -->
                         <div class="col-auto">
-                            {% if article.image_filename %}
-                                <img src="{{ url_for('static', filename='uploads/' + article.image_filename) }}"
+                            {% if article.image_filename and article.image_filename.strip() %}
+                                <img src="{{ url_for('static', filename=article.image_filename) }}"
                                      class="rounded" alt="{{ article.title }}"
                                      style="width: 80px; height: 80px; object-fit: cover;">
-                            {% else %}
-                                <div class="rounded bg-dark d-flex align-items-center justify-content-center"
-                                     style="width: 80px; height: 80px;">
-                                    <i class="bi bi-image text-white-50" style="font-size: 1.5rem;"></i>
-                                </div>
                             {% endif %}
                         </div>
 
@@ -40,7 +35,12 @@
                                         {{ article.title }}
                                     </a>
                                 </h5>
-                                <span class="badge bg-{{ status_badges.get(article.status, 'secondary') }}">
+                                <span class="badge
+                                    {% if article.status == 'Черновик' %}bg-secondary
+                                    {% elif article.status == 'На проверке' %}bg-warning
+                                    {% elif article.status == 'Опубликовано' %}bg-success
+                                    {% elif article.status == 'Отклонено' %}bg-danger
+                                    {% else %}bg-info{% endif %}">
                                     {{ article.status }}
                                 </span>
                             </div>
@@ -49,7 +49,12 @@
                                     <i class="bi bi-tag"></i> {{ article.category_name }}
                                 </span>
                                 <span>
-                                    <i class="bi bi-calendar3"></i> {{ article.created_at[:16] }}
+                                    <i class="bi bi-calendar3"></i>
+                                    {% if article.created_at %}
+                                        {{ article.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                    {% else %}
+                                        Дата не указана
+                                    {% endif %}
                                 </span>
                             </div>
 
