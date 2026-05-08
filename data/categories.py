@@ -4,7 +4,7 @@ from sqlalchemy import orm
 import sqlalchemy
 from .db_session import SqlAlchemyBase
 
-class Categories(SqlAlchemyBase):
+class Categories(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'categories'
 
     id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)

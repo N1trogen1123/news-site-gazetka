@@ -37,7 +37,9 @@
 
 <!-- Изображение -->
 <div class="text-center mb-4">
+    {% if news.image_filename %}
     <img src="{{ url_for('static', filename=news.image_filename) }}" class="img-fluid rounded" alt="{{ news.title }}">
+{% endif %}
 </div>
 
 <!-- Содержание -->

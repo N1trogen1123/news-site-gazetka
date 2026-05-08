@@ -1,7 +1,8 @@
 import os
 import datetime
+import sqlalchemy.exc
 
-from flask import Flask, request, redirect, render_template, url_for, abort, flash
+from flask import Flask, request, redirect, render_template, url_for, abort, flash, jsonify
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 from sqlalchemy import or_
 
@@ -254,7 +255,7 @@ def view_news(id):
 def moderation():
     """Страница модерации новостей"""
     # Проверяем права доступа
-    if current_user.level not in ['moderator', 'admin'] or current_user.is_banned == 0:
+    if current_user.level not in ['moderator', 'admin'] or current_user.is_banned == 1:
         abort(403)
 
     db_sess = db_session.create_session()
@@ -350,148 +351,353 @@ def dashboard():
 @app.route('/moderation/<int:id>', methods=['GET', 'POST'])
 def moderate_news_id(id):
     db = db_session.create_session()
-    article = db.get(News, id)
+    try:
+        article = db.get(News, id)
 
-    # Проверка прав модератора
-    if not current_user.is_authenticated or current_user.is_banned == 1 or not (current_user.level == 'moderator' or current_user.level == 'admin'):
-        flash('Доступ запрещен', 'danger')
-        return redirect(url_for('index'))
+        # Проверка прав модератора
+        if not current_user.is_authenticated or current_user.is_banned == 1 or not (current_user.level == 'moderator' or current_user.level == 'admin'):
+            flash('Доступ запрещен', 'danger')
+            return redirect(url_for('index'))
 
-    # Только новости на проверке можно модерировать
-    if article.status != 'На проверке':
-        flash('Эта новость уже была проверена', 'warning')
-        return redirect(url_for('view_news', id=article.id))
+        # Только новости на проверке можно модерировать
+        if article.status != 'На проверке':
+            flash('Эта новость уже была проверена', 'warning')
+            return redirect(url_for('view_news', id=article.id))
 
-    form = ModerationForm()
+        form = ModerationForm()
 
-    if form.validate_on_submit():
-        comment = form.comment.data.strip()
+        if form.validate_on_submit():
+            comment = form.comment.data.strip()
 
-        if form.submit_approve.data:
-            article.status = 'Опубликовано'
-            article.published_at = datetime.datetime.now()
-            article.moderation_comment = comment if comment else None
-            flash('Новость одобрена и опубликована', 'success')
+            if form.submit_approve.data:
+                article.status = 'Опубликовано'
+                article.published_at = datetime.datetime.now()
+                article.moderation_comment = comment if comment else None
+                flash('Новость одобрена и опубликована', 'success')
 
-        elif form.submit_reject.data:
-            article.status = 'Отклонено'
-            article.moderation_comment = comment if comment else 'Отклонено без указания причины'
-            flash('Новость отклонена', 'warning')
+            elif form.submit_reject.data:
+                article.status = 'Отклонено'
+                article.moderation_comment = comment if comment else 'Отклонено без указания причины'
+                flash('Новость отклонена', 'warning')
 
-        article.moderated_at = datetime.datetime.now()
-        article.moderated_by = current_user.id
-        db.commit()
+            article.moderated_at = datetime.datetime.now()
+            article.moderated_by = current_user.id
+            db.commit()
 
-        return redirect(url_for('moderation'))
+            return redirect(url_for('moderation'))
 
-    return render_template('view_news.html', news=article, form=form)
+        return render_template('view_news.html', news=article, form=form)
+    finally:
+        db.close()
 
 
 @app.route('/edit_news/<int:id>', methods=['GET', 'POST'])
 def edit_news(id):
     db_sess = db_session.create_session()
-    news = db_sess.query(News).get(id)
-    form = NewsForm()
+    try:
+        news = db_sess.query(News).get(id)
+        form = NewsForm()
 
-    categories = db_sess.query(Categories).all()
-    form.category_id.choices = [(c.id, c.name) for c in categories]
-    if request.method == 'GET':
-        form.title.data = news.title
-        form.content.data = news.content
-        form.category_id.data = news.category_id
+        categories = db_sess.query(Categories).all()
+        form.category_id.choices = [(c.id, c.name) for c in categories]
+        if request.method == 'GET':
+            form.title.data = news.title
+            form.content.data = news.content
+            form.category_id.data = news.category_id
 
-    if not news:
-        abort(404)
+        if not news:
+            abort(404)
 
-    if not ((current_user.level == 'moderator' or current_user.level == 'admin') or (news.author_id == current_user.id)) or (current_user.is_banned == 1):
-        abort(403)
+        if not ((current_user.level == 'moderator' or current_user.level == 'admin') or (news.author_id == current_user.id)) or (current_user.is_banned == 1):
+            abort(403)
 
 
-    if form.validate_on_submit():
-        existing_news = db_sess.query(News).filter(
-            News.title == form.title.data,
-            News.id != id
-        ).first()
+        if form.validate_on_submit():
+            existing_news = db_sess.query(News).filter(
+                News.title == form.title.data,
+                News.id != id
+            ).first()
 
-        if existing_news:
-            return render_template('edit_news.html', form=form, news=news,
-                                   message='Такая новость уже есть')
+            if existing_news:
+                return render_template('edit_news.html', form=form, news=news,
+                                       message='Такая новость уже есть')
 
-        news.title = form.title.data
-        news.content = form.content.data
-        news.category_id = form.category_id.data
+            news.title = form.title.data
+            news.content = form.content.data
+            news.category_id = form.category_id.data
 
-        if 'sa' in request.form:
-            news.status = 'Черновик'
-        elif 'submit' in request.form:
-            if 'submit' in request.form and (current_user.level in ['admin', 'moderator']):
-                news.status = 'Опубликовано'
+            if 'sa' in request.form:
+                news.status = 'Черновик'
+            elif 'submit' in request.form:
+                if 'submit' in request.form and (current_user.level in ['admin', 'moderator']):
+                    news.status = 'Опубликовано'
+                else:
+                    news.status = 'На проверке'
+
+            news.updated_at = datetime.datetime.now()
+
+            if form.image.data and form.image.data.filename:
+                image_file = form.image.data
+                filename = secure_filename(image_file.filename)
+                timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{filename}"
+
+                if news.image_filename and news.image_filename != 'image/default.jpg':
+                    old_image_path = os.path.join(app.config['UPLOAD_FOLDER'],
+                                                  news.image_filename.replace('uploads/news/', ''))
+                    if os.path.exists(old_image_path):
+                        os.remove(old_image_path)
+
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                image_file.save(file_path)
+                news.image_filename = f"uploads/news/{filename}"
+
+            db_sess.commit()
+
+            if news.status == 'Черновик':
+                return redirect(url_for('dashboard'))
             else:
-                news.status = 'На проверке'
+                return redirect(url_for('index'))
 
-        news.updated_at = datetime.datetime.now()
-
-        if form.image.data and form.image.data.filename:
-            image_file = form.image.data
-            filename = secure_filename(image_file.filename)
-            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{timestamp}_{filename}"
-
-            if news.image_filename and news.image_filename != 'image/default.jpg':
-                old_image_path = os.path.join(app.config['UPLOAD_FOLDER'],
-                                              news.image_filename.replace('uploads/news/', ''))
-                if os.path.exists(old_image_path):
-                    os.remove(old_image_path)
-
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            image_file.save(file_path)
-            news.image_filename = f"uploads/news/{filename}"
-
-        db_sess.commit()
-
-        if news.status == 'Черновик':
-            return redirect(url_for('dashboard'))
-        else:
-            return redirect(url_for('index'))
-
-    return render_template('edit_news.html', form=form, news=news)
+        return render_template('edit_news.html', form=form, news=news)
+    finally:
+        db_sess.close()
 
 
 @app.route('/news/<int:id>/delete', methods=['GET', 'POST'])
 @login_required
 def delete_news(id):
     db_sess = db_session.create_session()
-    news = db_sess.get(News, id)
-
-    if not news:
-        flash('Новость не найдена', 'danger')
-        return redirect(url_for('index'))
-
-    if current_user.id != news.author_id and current_user.level not in ['admin', 'moderator'] or (current_user.is_banned == 1):
-        flash('У вас нет прав на удаление этой новости', 'danger')
-        return redirect(url_for('news_detail', id=id))
-
     try:
-        logs = db_sess.query(ModerationLogs).filter(ModerationLogs.news_id == id).all()
+        news = db_sess.get(News, id)
 
-        for log in logs:
-            db_sess.delete(log)
+        if not news:
+            flash('Новость не найдена', 'danger')
+            return redirect(url_for('index'))
 
-        db_sess.delete(news)
-        db_sess.commit()
-        flash('Новость успешно удалена', 'success')
-    except Exception as e:
-        db_sess.rollback()
-        flash('Ошибка при удалении новости', 'danger')
-        print(f"Error deleting news: {e}")
+        if current_user.id != news.author_id and current_user.level not in ['admin', 'moderator'] or (current_user.is_banned == 1):
+            flash('У вас нет прав на удаление этой новости', 'danger')
+            return redirect(url_for('news_detail', id=id))
+
+        try:
+            logs = db_sess.query(ModerationLogs).filter(ModerationLogs.news_id == id).all()
+
+            for log in logs:
+                db_sess.delete(log)
+
+            db_sess.delete(news)
+            db_sess.commit()
+            flash('Новость успешно удалена', 'success')
+        except Exception as e:
+            db_sess.rollback()
+            flash('Ошибка при удалении новости', 'danger')
+            print(f"Error deleting news: {e}")
+
+        return redirect(url_for('index'))
     finally:
         db_sess.close()
 
-    return redirect(url_for('index'))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     return "В разработке"
+
+
+# REST API
+
+@app.route('/api/news')
+def api_get_news():
+    db_sess = db_session.create_session()
+    try:
+        news = db_sess.query(News).filter(News.status == 'Опубликовано').all()
+        return jsonify(
+            {
+                'news': [
+                    item.to_dict(only=(
+                        'id', 'title', 'content', 'status',
+                        'created_at', 'published_at', 'image_filename',
+                        'author.id', 'author.username',
+                        'category.id', 'category.name',
+                    ))
+                    for item in news
+                ]
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/news/<int:news_id>')
+def api_get_one_news(news_id):
+    db_sess = db_session.create_session()
+    try:
+        item = db_sess.query(News).filter(
+            News.id == news_id,
+            News.status == 'Опубликовано').first()
+        if not item:
+            return jsonify({'error': 'Not found'}), 404
+        return jsonify(
+            {
+                'news': item.to_dict(only=(
+                    'id', 'title', 'content', 'status',
+                    'moderation_comment', 'created_at', 'published_at', 'image_filename',
+                    'author.id', 'author.username',
+                    'category.id', 'category.name',
+                ))
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/news', methods=['POST'])
+def api_created_news():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'Bad request', 'message': 'Ожидается JSON'}), 400
+
+    errors = {}
+    title = (data.get('title') or '').strip()
+    content = (data.get('content') or '').strip()
+    author_id = data.get('author_id')
+    category_id = data.get('category_id')
+    status = data.get('status', 'Черновик')
+
+    if not title:
+        errors['title'] = 'Обязательное поле'
+    if not content:
+        errors['content'] = 'Обязательное поле'
+    if not author_id:
+        errors['author_id'] = 'Обязательное поле'
+    if not category_id:
+        errors['category_id'] = 'Обязательное поле'
+    if status not in ('Черновик', 'На модерации'):
+        errors['status'] = 'Допустимо: Черновик, На модерации'
+
+    if errors:
+        return jsonify({'error': 'Validation Error', 'fields': errors}), 422
+
+    db_sess = db_session.create_session()
+    try:
+        news_item = News(
+            title=title,
+            content=content,
+            author_id=author_id,
+            category_id=category_id,
+            status=status,
+            created_at=datetime.datetime.now(),
+        )
+        db_sess.add(news_item)
+        db_sess.commit()
+        return jsonify({'news': news_item.to_dict(only=('id', 'title', 'status', 'created_at'))}), 201
+    except Exception as e:
+        db_sess.rollback()
+        return jsonify({'error': 'Server Error', 'message': str(e)}), 500
+    finally:
+        db_sess.close()
+
+
+@app.route("/api/news/<int:news_id>", methods=["DELETE"])
+def api_delete_news(news_id):
+    db_sess = db_session.create_session()
+    try:
+        item = db_sess.query(News).get(news_id)
+        if not item:
+            return jsonify({'error': 'Not found'}), 404
+        db_sess.delete(item)
+        db_sess.commit()
+        return jsonify({'message': f'Новость #{news_id} удалена'})
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/users')
+def api_get_users():
+    db_sess = db_session.create_session()
+    try:
+        users = db_sess.query(User).all()
+        return jsonify(
+            {
+                'users': [
+                    item.to_dict(only=('id', 'username', 'level', 'created_at'))
+                    for item in users
+                ]
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/users/<int:user_id>')
+def api_get_one_user(user_id):
+    db_sess = db_session.create_session()
+    try:
+        user = db_sess.query(User).get(user_id)
+        if not user:
+            return jsonify({'error': 'user not found'}), 404
+        return jsonify(
+            {
+                'user': user.to_dict(only=('id', 'username', 'level', 'created_at'))
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/categories')
+def api_get_categories():
+    db_sess = db_session.create_session()
+    try:
+        categories = db_sess.query(Categories).order_by(Categories.name).all()
+        return jsonify(
+            {
+                'categories': [
+                    item.to_dict(only=('id', 'name'))
+                    for item in categories
+                ]
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/categories/<int:category_id>')
+def api_get_one_category(category_id):
+    db_sess = db_session.create_session()
+    try:
+        category = db_sess.query(Categories).get(category_id)
+        if not category:
+            return jsonify({'error': 'Not Found'}), 404
+        return jsonify(
+            {
+                'category': category.to_dict(only=('id', 'name'))
+            }
+        )
+    finally:
+        db_sess.close()
+
+
+@app.route('/api/categories', methods=['POST'])
+def api_create_category():
+    data = request.get_json(silent=True)
+    name = (data.get('name') or '').strip() if data else ''
+    if not name:
+        return jsonify({'error': 'Validation Error', 'fields': {'name': 'Обязательное поле'}}), 422
+
+    db_sess = db_session.create_session()
+    try:
+        cat = Categories(name=name)
+        db_sess.add(cat)
+        db_sess.commit()
+        return jsonify({'category': cat.to_dict(only=('id', 'name'))}), 201
+    except sqlalchemy.exc.IntegrityError:
+        db_sess.rollback()
+        return jsonify({'error': 'Conflict', 'message': 'Такая категория уже существует'}), 409
+    except Exception as e:
+        db_sess.rollback()
+        return jsonify({'error': 'Server Error', 'message': str(e)}), 500
+    finally:
+        db_sess.close()
 
 
 if __name__ == '__main__':
