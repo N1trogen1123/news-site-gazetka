@@ -13,7 +13,7 @@ class News(SqlAlchemyBase, UserMixin, SerializerMixin):
                            primary_key=True, autoincrement=True)
     title = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     content = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    author_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'), nullable=False)
+    author_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'))
     category_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('categories.id'), nullable=False)
     status = sqlalchemy.Column(sqlalchemy.String, nullable=False)
     moderation_comment = sqlalchemy.Column(sqlalchemy.String)
@@ -24,3 +24,6 @@ class News(SqlAlchemyBase, UserMixin, SerializerMixin):
     author = orm.relationship('User', back_populates='news')
     category = orm.relationship('Categories', back_populates='news')
     moderation_logs = orm.relationship('ModerationLogs', back_populates='news')
+
+    def __repr__(self):
+        return f"<News {self.id}: {self.title[:50]}>"

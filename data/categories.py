@@ -11,3 +11,6 @@ class Categories(SqlAlchemyBase, SerializerMixin):
     name = sqlalchemy.Column(sqlalchemy.String)
 
     news = orm.relationship("News", back_populates="category")
+
+    def __repr__(self):
+        return f"<Category {self.id}: {self.name}>"

@@ -16,3 +16,5 @@ class ModerationLogs(SqlAlchemyBase):
     news = orm.relationship("News", back_populates="moderation_logs")
     moderator = orm.relationship("User", back_populates="moderator")
 
+    def __repr__(self):
+        return f"<ModerationLog {self.id}: {self.action} for news {self.news_id}>"

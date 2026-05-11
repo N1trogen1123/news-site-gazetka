@@ -27,3 +27,6 @@ class User(SqlAlchemyBase, UserMixin, SerializerMixin):
     def check_password(self, password):
         result = check_password_hash(self.hashed_password, password)
         return result
+
+    def __repr__(self):
+        return f"<ModerationLog {self.id}: {self.action} for news {self.news_id}>"

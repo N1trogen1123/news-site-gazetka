@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}NewsModer{% endblock %}</title>
+    <title>{% block title %}Gazetka{% endblock %}</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
@@ -13,7 +13,7 @@
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
         <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
-            <i class="bi bi-newspaper"></i> NewsModer
+            <i class="bi bi-newspaper"></i> Gazetka
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span class="navbar-toggler-icon"></span>
@@ -47,7 +47,7 @@
                 {% endif %}
                 {% if current_user.level == 'admin' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin') }}">
+                    <a class="nav-link" href="{{ url_for('admin.index') }}">
                         <i class="bi bi-shield-lock"></i> Админ-панель
                     </a>
                 </li>

@@ -1,0 +1,9 @@
+админ
+    email: tests@test.ru
+    password: 1234
+модератор:
+    email: moder@test.ru
+    password: 1234
+пользователь:
+    email:user@test.ru
+    password: 1234

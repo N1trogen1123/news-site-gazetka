@@ -6,6 +6,9 @@ from flask import Flask, request, redirect, render_template, url_for, abort, fla
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 from sqlalchemy import or_
 
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
+
 from werkzeug.utils import secure_filename
 
 from data import db_session
@@ -18,6 +21,66 @@ from forms.Newsform import NewsForm
 from forms.RegisterForm import RegisterForm
 from forms.ModerationForm import ModerationForm
 
+# Проверка прав для админ-панели
+class AdminAccess(ModelView):
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.level == 'admin' and current_user.is_banned != 1
+
+    def inaccessible_callback(self, name, **kwargs):
+        return abort(403)
+
+# Классы для отображения таблиц для админ-панели
+class UserAdmin(AdminAccess):
+    column_list = ['id', 'username', 'email', 'level', 'is_banned', 'create_time']
+    column_searchable_list = ['username', 'email']
+    column_filters = ['level', 'is_banned']
+    column_labels = {
+        'id': 'ID',
+        'username': 'Имя',
+        'email': 'Email',
+        'level': 'Уровень',
+        'is_banned': 'Заблокирован',
+        'create_time': 'Дата регистрации'
+    }
+    form_columns = ['username', 'email', 'level', 'is_banned']
+
+
+class NewsAdmin(AdminAccess):
+    column_list = ['id', 'title', 'author_id', 'status', 'created_at']
+    column_searchable_list = ['title', 'content']
+    column_filters = ['status', 'author_id', 'category_id']
+    column_labels = {
+        'id': 'ID',
+        'title': 'Заголовок',
+        'author_id': 'ID автора',
+        'status': 'Статус',
+        'created_at': 'Создано'
+    }
+    form_columns = ['title', 'content', 'category_id', 'status', 'image_filename']
+
+
+class CategoriesAdmin(AdminAccess):
+    column_list = ['id', 'name']
+    column_searchable_list = ['name']
+    column_labels = {
+        'id': 'ID',
+        'name': 'Название'
+    }
+
+
+class ModerationLogsAdmin(AdminAccess):
+    column_list = ['id', 'news_id', 'moderator_id', 'action', 'timestamp']
+    column_filters = ['action']
+    column_labels = {
+        'id': 'ID',
+        'news_id': 'ID новости',
+        'moderator_id': 'ID модератора',
+        'action': 'Действие',
+        'timestamp': 'Время'
+    }
+    can_create = False
+    can_edit = False
+
 app = Flask(__name__)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -29,6 +92,17 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 db_session.global_init("db/news.db")
 
+"""Админ-панель"""
+# Инициализация админ-панели
+admin = Admin(app, name='Админ-панель')
+
+# Временная сессия для админки
+admin_db_session = db_session.create_session()
+
+admin.add_view(UserAdmin(User, admin_db_session, name='Пользователи'))
+admin.add_view(NewsAdmin(News, admin_db_session, name='Новости'))
+admin.add_view(CategoriesAdmin(Categories, admin_db_session, name='Категории'))
+admin.add_view(ModerationLogsAdmin(ModerationLogs, admin_db_session, name='Логи модерации'))
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -274,7 +348,6 @@ def moderation():
     finally:
         db_sess.close()
 
-
 @app.route('/moderate/<int:id>/<action>/')
 @login_required
 def moderate_news(id, action, comment='Причина не указана'):
@@ -497,12 +570,6 @@ def delete_news(id):
     finally:
         db_sess.close()
 
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    return "В разработке"
-
-
 # REST API
 
 @app.route('/api/news')
@@ -701,4 +768,4 @@ def api_create_category():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=1000, debug=True)
+    app.run(host='127.0.0.1', port=51974, debug=True)
