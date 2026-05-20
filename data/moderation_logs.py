@@ -10,7 +10,6 @@ class ModerationLogs(SqlAlchemyBase):
     news_id = sqlalchemy.Column(sqlalchemy.Integer,sqlalchemy.ForeignKey('news.id') ,nullable=False)
     moderator_id = sqlalchemy.Column(sqlalchemy.Integer, sqlalchemy.ForeignKey('users.id'), nullable=False)
     action = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    comment = sqlalchemy.Column(sqlalchemy.String)
     created_at = sqlalchemy.Column(sqlalchemy.TIMESTAMP)
 
     news = orm.relationship("News", back_populates="moderation_logs")

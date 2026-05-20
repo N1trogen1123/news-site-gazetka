@@ -348,13 +348,17 @@ def moderation():
     finally:
         db_sess.close()
 
+from flask import request
+
 @app.route('/moderate/<int:id>/<action>/')
 @login_required
 def moderate_news(id, action, comment='Причина не указана'):
     """Обработка модерации новости (одобрение/отклонение)"""
     if current_user.level not in ['moderator', 'admin']:
         abort(403)
-
+    
+    print(f"DEBUG: id={id}, action={action}, comment={comment}")
+    
     db_sess = db_session.create_session()
     try:
         news = db_sess.query(News).filter(News.id == id).first()
@@ -373,25 +377,28 @@ def moderate_news(id, action, comment='Причина не указана'):
         else:
             abort(400)
 
+        # Создаем лог
         log = ModerationLogs()
         log.news_id = id
         log.moderator_id = current_user.id
         log.action = action
         log.comment = comment
         log.timestamp = datetime.datetime.now()
+        
         db_sess.add(log)
-
         db_sess.commit()
+        
+        print(f"DEBUG: Лог добавлен: id={log.id}, comment={log.comment}")  # Отладка
+        
         flash(message, 'success')
-
-        return redirect(url_for('moderation'))
     except Exception as e:
         db_sess.rollback()
         print(f"Ошибка при модерации: {e}")
         flash(f'Ошибка при модерации: {str(e)}', 'danger')
-        return redirect(url_for('moderation'))
     finally:
         db_sess.close()
+    
+    return redirect(url_for('moderation'))
 
 
 @app.route('/dashboard')
@@ -768,4 +775,4 @@ def api_create_category():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=51974, debug=True)
+    app.run(host='127.0.0.1', port=50620, debug=True)

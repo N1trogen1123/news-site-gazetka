@@ -59,33 +59,4 @@
                     </a>
                 {% endif %}
             </div>
-
-            <!-- Панель модератора -->
-            {% if moderation_form %}
-                <div class="card bg-dark border-warning mt-4 glass-card">
-                    <div class="card-header border-warning text-warning fw-bold">
-                        <i class="bi bi-shield-exclamation"></i> Решение модератора
-                    </div>
-                    <div class="card-body">
-                        <form method="POST" action="{{ url_for('moderate_news', id=article.id) }}">
-                            {{ moderation_form.hidden_tag() }}
-                            <div class="mb-3">
-                                <label for="comment" class="form-label text-white-50">Комментарий (необязательно, но желательно при отклонении)</label>
-                                {{ moderation_form.comment(class="form-control bg-dark text-white border-secondary", rows="3", placeholder="Укажите причину, если отклоняете...") }}
-                            </div>
-                            <div class="d-flex gap-2">
-                                <button type="submit" name="submit_approve" value="1" class="btn btn-success">
-                                    <i class="bi bi-check-circle"></i> Одобрить и опубликовать
-                                </button>
-                                <button type="submit" name="submit_reject" value="1" class="btn btn-danger">
-                                    <i class="bi bi-x-circle"></i> Отклонить
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
 {% endblock %}

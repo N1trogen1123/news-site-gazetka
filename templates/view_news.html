@@ -61,15 +61,17 @@
     <div class="moderation-card-body">
         <form method="POST" action="{{ url_for('moderate_news_id', id=news.id) }}">
             {{ form.hidden_tag() }}
-            <div class="mb-3">
-                {{ form.comment.label(class="form-label") }}
-                {{ form.comment(class="form-control", rows="3", placeholder="Укажите причину одобрения или отклонения") }}
-                <small><i class="bi bi-info-circle"></i> Максимум 500 символов. Комментарий будет виден автору новости.</small>
-                {% for error in form.comment.errors %}<div class="text-danger mt-1">{{ error }}</div>{% endfor %}
-            </div>
             <div class="d-flex gap-2">
-                {{ form.submit_approve(class="btn btn-success") }}
-                {{ form.submit_reject(class="btn btn-danger") }}
+                <a href="{{ url_for('moderate_news', id=news.id, action='approve') }}"
+                    class="btn btn-sm btn-success me-2"
+                    onclick="return confirm('Одобрить эту новость?')">
+                        <i class="bi bi-check-circle"></i> Одобрить
+                </a>
+                <a href="{{ url_for('moderate_news', id=news.id, action='reject') }}"
+                    class="btn btn-sm btn-danger"
+                    onclick="return confirm('Отклонить эту новость?')">
+                        <i class="bi bi-x-circle"></i> Отклонить
+                </a>
             </div>
         </form>
     </div>
