@@ -1,2 +1,4 @@
 /.venv/
 /.idea/
+/forms/__pycache__/
+/data/__pycache__/

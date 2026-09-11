@@ -775,4 +775,4 @@ def api_create_category():
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=50620, debug=True)
+    app.run(host='127.0.0.1', port=443, debug=True)
