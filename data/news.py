@@ -6,7 +6,7 @@ from .db_session import SqlAlchemyBase
 
 
 
-class News(SqlAlchemyBase, UserMixin, SerializerMixin):
+class News(SqlAlchemyBase, SerializerMixin):
     __tablename__ = 'news'
 
     id = sqlalchemy.Column(sqlalchemy.Integer,

@@ -22,7 +22,7 @@
                         </div>
                         <div class="col">
                             <h5 class="text-white mb-1">
-                                <a href="{{ url_for('view_news', id=article.id) }}" class="text-white text-decoration-none">
+                                <a href="{{ url_for('news.view_news', id=article.id) }}" class="text-white text-decoration-none">
                                     {{ article.title }}
                                 </a>
                             </h5>
@@ -43,15 +43,15 @@
                         </div>
                         <div class="col-auto">
                             <div class="btn-group" role="group">
-                                <a href="{{ url_for('moderate_news_id', id=article.id) }}" class="btn btn-sm btn-outline-info me-2">
+                                <a href="{{ url_for('moder.moderate_news_id', id=article.id) }}" class="btn btn-sm btn-outline-info me-2">
                                     <i class="bi bi-eye"></i> Просмотр
                                 </a>
-                                <a href="{{ url_for('moderate_news', id=article.id, action='approve') }}"
+                                <a href="{{ url_for('moder.moderate_news', id=article.id, action='approve') }}"
                                    class="btn btn-sm btn-success me-2"
                                    onclick="return confirm('Одобрить эту новость?')">
                                     <i class="bi bi-check-lg"></i> Одобрить
                                 </a>
-                                <a href="{{ url_for('moderate_news', id=article.id, action='reject') }}"
+                                <a href="{{ url_for('moder.moderate_news', id=article.id, action='reject') }}"
                                    class="btn btn-sm btn-danger"
                                    onclick="return confirm('Отклонить эту новость?')">
                                     <i class="bi bi-x-lg"></i> Отклонить

@@ -1,4 +1,7 @@
-/.venv/
+venv/
 /.idea/
-/forms/__pycache__/
-/data/__pycache__/
+blueprints/__pycache__
+data/__pycache__
+.vscode/
+forms/__pycache__
+decorators/__pycache__

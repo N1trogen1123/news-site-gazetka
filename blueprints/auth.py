@@ -3,11 +3,13 @@ import sqlalchemy.exc
 
 from data import db_session
 
-from flask import Blueprint, request, redirect, render_template, url_for, abort, flash, jsonify
+from flask import Blueprint, request, redirect, render_template, url_for, abort, flash
 from flask_login import LoginManager, login_user, current_user, logout_user, login_required
 
 from forms.LoginForm import LoginForm
 from forms.RegisterForm import RegisterForm
+
+from data.users import User
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -18,7 +20,7 @@ def login():
     
     form = LoginForm()
     if form.validate_on_submit():
-        db_sess = db_session().create_session()
+        db_sess = db_session.create_session()
         try:
             user = db_sess.query(User).filter(User.email == form.email.data)
 
@@ -39,7 +41,7 @@ def login():
 def register():
     form = RegisterForm()
     if form.validate_on_submit():
-        db_sess = db_session().create_session()
+        db_sess = db_session.create_session()
         try:
             user = db_sess.query(User).filter(User.email == form.email.data).first()
             if user:
@@ -63,3 +65,11 @@ def register():
             return f'Ошибка :{str(e)}', 500
         finally:
             db_sess.close()
+    return render_template('register.html', title='Регистрация', form=form)
+
+
+@auth_bp.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('home.index'))

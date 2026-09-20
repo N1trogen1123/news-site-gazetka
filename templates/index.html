@@ -10,7 +10,7 @@
 
     <!-- Поиск и фильтрация -->
     <div class="glass-card p-3 mb-4">
-        <form method="GET" action="{{ url_for('index') }}">
+        <form method="GET" action="{{ url_for('home.index') }}">
             <div class="row g-2 align-items-end">
                 <div class="col-md-6">
                     <label class="form-label text-white-50 small">Поиск</label>
@@ -59,7 +59,7 @@
                                 <span class="badge bg-primary bg-opacity-75">{{ article.category_name if article.category_name else 'Без категории' }}</span>
                             </div>
                             <h5 class="card-title text-white fw-semibold">
-                                <a href="{{ url_for('view_news', id=article.id) }}" class="text-white text-decoration-none stretched-link">
+                                <a href="{{ url_for('news.view_news', id=article.id) }}" class="text-white text-decoration-none stretched-link">
                                     {{ article.title }}
                                 </a>
                             </h5>
@@ -94,7 +94,7 @@
                 {% endif %}
             </p>
             {% if current_user and current_user.is_authenticated %}
-                <a href="{{ url_for('add_news') }}" class="btn btn-primary">
+                <a href="{{ url_for('news.add_news') }}" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Добавить новость
                 </a>
             {% endif %}
