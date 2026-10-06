@@ -1,7 +1,5 @@
 venv/
 /.idea/
-blueprints/__pycache__
-data/__pycache__
 .vscode/
-forms/__pycache__
-decorators/__pycache__
+**/__pycache__/
+

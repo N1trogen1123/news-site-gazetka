@@ -1,25 +1,37 @@
 from werkzeug.security import generate_password_hash, check_password_hash
-import sqlalchemy
-from sqlalchemy import orm
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from enum import Enum
+from sqlalchemy import DateTime, String, Enum as SQLEnum
 from flask_login import UserMixin
 from .db_session import SqlAlchemyBase
 from sqlalchemy_serializer import SerializerMixin
+from datetime import datetime
+
+
+class UserLevel(str, Enum):
+    USER = "user"
+    MODERATOR = "moderator"
+    ADMIN = "admin"
 
 
 class User(SqlAlchemyBase, UserMixin, SerializerMixin):
     __tablename__ = 'users'
+    
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), unique=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True)
+    # 60 символов потому что тут хранится хэш bcrypt
+    hashed_password: Mapped[str] = mapped_column(String(60))
+    level: Mapped[UserLevel] = mapped_column(
+        SQLEnum(UserLevel),
+        default=UserLevel.USER
+    )
+    is_banned: Mapped[bool]
+    created_at: Mapped[datetime]
 
-    id = sqlalchemy.Column(sqlalchemy.Integer,
-                           primary_key=True, autoincrement=True)
-    username = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    email = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    hashed_password = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    level = sqlalchemy.Column(sqlalchemy.String, nullable=False)
-    is_banned = sqlalchemy.Column(sqlalchemy.Boolean, nullable=False)
-    created_at = sqlalchemy.Column(sqlalchemy.DateTime)
+    news: Mapped["News"] = relationship(back_populates="author")
+    moderator: Mapped["ModerationLogs"] = relationship(back_populates="moderator")
 
-    news = orm.relationship("News", back_populates="author")
-    moderator = orm.relationship("ModerationLogs", back_populates="moderator")
 
     def set_password(self, password):
         self.hashed_password = generate_password_hash(password)

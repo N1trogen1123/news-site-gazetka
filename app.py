@@ -37,8 +37,8 @@ def create_app():
             return db_sess.get(User, int(user_id))        
         finally:
             db_sess.close()
-    
-    init_admin(app)
+     
+        init_admin(app)
 
     return app
 
