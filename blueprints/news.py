@@ -1,11 +1,12 @@
 import datetime
+import os
 
 from data import db_session
 from data.categories import Categories
 from data.news import News
 from data.users import User
 
-from flask import Blueprint, render_template, url_for, flash, request, redirect
+from flask import Blueprint, render_template, url_for, flash, request, redirect, current_app
 
 from flask_login import current_user, login_required
 
@@ -13,6 +14,8 @@ from decorators.is_banned import is_banned
 from decorators.is_user_author_or_staff import author_or_staff_required
 
 from forms.Newsform import NewsForm
+
+from werkzeug.utils import secure_filename
 
 news_bp = Blueprint('news', __name__)
 
@@ -56,7 +59,7 @@ def add_news():
                 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
 
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
                 image_file.save(file_path)
                 news.image_filename = f"uploads/news/{filename}"
             else:
@@ -152,12 +155,12 @@ def edit_news(id):
                 filename = f"{timestamp}_{filename}"
 
                 if news.image_filename and news.image_filename != 'image/default.jpg':
-                    old_image_path = os.path.join(app.config['UPLOAD_FOLDER'],
+                    old_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'],
                                                   news.image_filename.replace('uploads/news/', ''))
                     if os.path.exists(old_image_path):
                         os.remove(old_image_path)
 
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
                 image_file.save(file_path)
                 news.image_filename = f"uploads/news/{filename}"
 

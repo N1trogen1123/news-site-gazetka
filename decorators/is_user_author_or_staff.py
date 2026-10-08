@@ -5,7 +5,7 @@ from data import db_session
 from data.news import News
 
 def author_or_staff_required(f): # 1 уровень: принимает саму функцию роута
-    @wraps(f) # 👈 Сразу оборачиваем функцию f
+    @wraps(f)
     def decorated_function(*args, **kwargs): # 2 уровень: принимает аргументы роута
         # 1. Извлекаем id из параметров URL маршрута
         record_id = kwargs.get('id')

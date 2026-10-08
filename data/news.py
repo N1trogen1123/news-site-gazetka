@@ -1,6 +1,6 @@
 from flask_login import UserMixin
 from sqlalchemy_serializer import SerializerMixin
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, ForeignKey
 from .db_session import SqlAlchemyBase
 from datetime import datetime
@@ -18,7 +18,7 @@ class News(SqlAlchemyBase, SerializerMixin):
     status: Mapped[str] = mapped_column(nullable=False)
     moderation_comment: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column()
-    publisher_at: Mapped[datetime] = mapped_column()
+    published_at: Mapped[datetime] = mapped_column()
     image_filename: Mapped[str] = mapped_column()
 
     author: Mapped["User"] = relationship(back_populates='news')
