@@ -1,12 +1,14 @@
 import datetime
 import os
 
+from sqlalchemy import select, delete
+
 from data import db_session
 from data.categories import Categories
 from data.news import News
 from data.users import User
 
-from flask import Blueprint, render_template, url_for, flash, request, redirect, current_app
+from flask import Blueprint, render_template, url_for, flash, request, redirect, current_app, abort
 
 from flask_login import current_user, login_required
 
@@ -26,20 +28,16 @@ def add_news():
     form = NewsForm()
     db_sess = db_session.create_session()
     try:
-        categories = db_sess.query(Categories).all()
+        categories = db_sess.scalars(select(Categories)).all()
         form.category_id.choices = [(c.id, c.name) for c in categories]
 
         if form.validate_on_submit():
-
-            existing_news = db_sess.query(News).filter(News.title == form.title.data).first()
+            existing_news = db_sess.scalars(select(News)).where(News.title == form.title.data).first()
             if existing_news:
                 return render_template('add_news.html', form=form, message='Такая новость уже есть')
 
             news = News()
-            news.title = form.title.data
-            news.content = form.content.data
-            news.author_id = current_user.id
-            news.category_id = form.category_id.data
+            form.populate_obj(news)
 
             if 'sa' in request.form:
                 news.status = 'Черновик'
@@ -89,14 +87,14 @@ def view_news(id):
     """Просмотр отдельной новости"""
     db_sess = db_session.create_session()
     try:
-        news = db_sess.query(News).filter(News.id == id).first()
+        news = db_sess.scalars(select(News)).where(News.id == id).first()
         if not news:
             return "Новость не найдена", 404
 
-        author = db_sess.query(User).filter(User.id == news.author_id).first()
+        author = db_sess.scalars(select(User)).where(User.id == news.author_id).first()
         news.author_name = author.username if author else 'Неизвестный автор'
 
-        category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
+        category = db_sess.scalars(select(Categories)).where(Categories.id == news.category_id).first()
         news.category_name = category.name if category else 'Без категории'
 
         return render_template('view_news.html', news=news, current_user=current_user)
@@ -110,10 +108,14 @@ def view_news(id):
 def edit_news(id):
     db_sess = db_session.create_session()
     try:
-        news = db_sess.query(News).get(id)
+        news = db_sess.get(News, id)
+
+        if not news:
+            abort(404)
+
         form = NewsForm()
 
-        categories = db_sess.query(Categories).all()
+        categories = db_sess.scalars(select(Categories)).all()
         form.category_id.choices = [(c.id, c.name) for c in categories]
         if request.method == 'GET':
             form.title.data = news.title
@@ -125,7 +127,7 @@ def edit_news(id):
 
 
         if form.validate_on_submit():
-            existing_news = db_sess.query(News).filter(
+            existing_news = db_sess.scalars(select(News)).where(
                 News.title == form.title.data,
                 News.id != id
             ).first()
@@ -167,7 +169,7 @@ def edit_news(id):
             db_sess.commit()
 
             if news.status == 'Черновик':
-                return redirect(url_for('dashboard'))
+                return redirect(url_for('home.dashboard'))
             else:
                 return redirect(url_for('home.index'))
 
@@ -188,10 +190,7 @@ def delete_news(id):
             flash('Новость не найдена', 'danger')
             return redirect(url_for('index'))
         try:
-            logs = db_sess.query(ModerationLogs).filter(ModerationLogs.news_id == id).all()
-
-            for log in logs:
-                db_sess.delete(log)
+            db_sess.execute(delete(ModerationLogs).where(ModerationLogs.news_id == id))
 
             db_sess.delete(news)
             db_sess.commit()

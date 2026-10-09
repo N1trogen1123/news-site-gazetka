@@ -5,6 +5,9 @@ from sqlalchemy import String, ForeignKey
 from .db_session import SqlAlchemyBase
 from datetime import datetime
 
+from typing import Optional
+
+
 
 
 class News(SqlAlchemyBase, SerializerMixin):
@@ -19,7 +22,7 @@ class News(SqlAlchemyBase, SerializerMixin):
     moderation_comment: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column()
     published_at: Mapped[datetime] = mapped_column()
-    image_filename: Mapped[str] = mapped_column()
+    image_filename: Mapped[Optional[str]] = mapped_column()
 
     author: Mapped["User"] = relationship(back_populates='news')
     category: Mapped["Categories"] = relationship(back_populates='news')
