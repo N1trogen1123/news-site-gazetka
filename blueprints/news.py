@@ -7,6 +7,7 @@ from data import db_session
 from data.categories import Categories
 from data.news import News
 from data.users import User
+from data.moderation_logs import ModerationLogs
 
 from flask import Blueprint, render_template, url_for, flash, request, redirect, current_app, abort
 
@@ -32,7 +33,7 @@ def add_news():
         form.category_id.choices = [(c.id, c.name) for c in categories]
 
         if form.validate_on_submit():
-            existing_news = db_sess.scalars(select(News)).where(News.title == form.title.data).first()
+            existing_news = db_sess.scalars(select(News).where(News.title == form.title.data)).first()
             if existing_news:
                 return render_template('add_news.html', form=form, message='Такая новость уже есть')
 
@@ -87,15 +88,21 @@ def view_news(id):
     """Просмотр отдельной новости"""
     db_sess = db_session.create_session()
     try:
-        news = db_sess.scalars(select(News)).where(News.id == id).first()
+        stmt = (
+            select(News)
+            .options(
+                joinedload(News.author),
+                joinedload(News.category)
+            )
+            .where(News.id == id)
+        )
+        news = db_sess.scalars(stmt).first()
+
         if not news:
             return "Новость не найдена", 404
 
-        author = db_sess.scalars(select(User)).where(User.id == news.author_id).first()
-        news.author_name = author.username if author else 'Неизвестный автор'
-
-        category = db_sess.scalars(select(Categories)).where(Categories.id == news.category_id).first()
-        news.category_name = category.name if category else 'Без категории'
+        news.author_name = news.author.username if news.author else 'Неизвестный автор'
+        news.category_name = news.category.name if news.category else 'Без категории'
 
         return render_template('view_news.html', news=news, current_user=current_user)
     finally:
@@ -127,10 +134,10 @@ def edit_news(id):
 
 
         if form.validate_on_submit():
-            existing_news = db_sess.scalars(select(News)).where(
+            existing_news = db_sess.scalars(select(News).where(
                 News.title == form.title.data,
                 News.id != id
-            ).first()
+            )).first()
 
             if existing_news:
                 return render_template('edit_news.html', form=form, news=news,

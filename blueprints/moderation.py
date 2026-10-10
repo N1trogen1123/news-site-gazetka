@@ -4,8 +4,12 @@ from data import db_session
 from data.news import News
 from data.users import User
 from data.categories import Categories
+from data.moderation_logs import ModerationLogs
 
-from flask import Blueprint, render_template, url_for, flash, request, redirect
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+
+from flask import Blueprint, render_template, url_for, flash, request, redirect, abort
 
 from flask_login import current_user, login_required
 
@@ -22,15 +26,12 @@ def moderation():
     """Страница модерации новостей"""
     db_sess = db_session.create_session()
     try:
-        # Получаем новости на проверке
-        news_list = db_sess.query(News).filter(News.status == 'На проверке').all()
-
-        for article in news_list:
-            author = db_sess.query(User).filter(User.id == article.author_id).first()
-            article.author_name = author.username if author else 'Неизвестный автор'
-
-            category = db_sess.query(Categories).filter(Categories.id == article.category_id).first()
-            article.category_name = category.name if category else 'Без категории'
+        stmt = (select(News)
+                .where(News.status == 'На проверке')
+                .options(
+                    joinedload(News.author),
+                    joinedload(News.category)))
+        news_list = db_sess.scalars(stmt).all()
 
         return render_template('moderation.html', news_list=news_list, current_user=current_user)
     finally:
@@ -46,12 +47,12 @@ def moderate_news(id, action, comment='Причина не указана'):
     
     db_sess = db_session.create_session()
     try:
-        news = db_sess.query(News).filter(News.id == id).first()
+        news = db_sess.scalars(select(News).where(News.id == id)).first()
         if not news:
             abort(404)
 
         if news.status != 'На проверке':
-            return redirect(url_for('moderation'))
+            return redirect(url_for('moder.moderation'))
 
         if action == 'approve':
             news.status = 'Опубликовано'
@@ -63,13 +64,7 @@ def moderate_news(id, action, comment='Причина не указана'):
             abort(400)
 
         # Создаем лог
-        log = ModerationLogs()
-        log.news_id = id
-        log.moderator_id = current_user.id
-        log.action = action
-        log.comment = comment
-        log.timestamp = datetime.datetime.now()
-        
+        log = ModerationLogs(news_id=id, moderator_id=current_user.id, action=action, comment=comment, timestamp=datetime.datetime.now())
         db_sess.add(log)
         db_sess.commit()
         
@@ -83,7 +78,7 @@ def moderate_news(id, action, comment='Причина не указана'):
     finally:
         db_sess.close()
     
-    return redirect(url_for('moderation'))
+    return redirect(url_for('moder.moderation'))
 
 
 @mod_bp.route('/moderation/<int:id>', methods=['GET', 'POST'])
@@ -91,9 +86,9 @@ def moderate_news(id, action, comment='Причина не указана'):
 @required_role(['admin', 'moderator'])
 @is_banned
 def moderate_news_id(id):
-    db = db_session.create_session()
+    db_sess = db_session.create_session()
     try:
-        article = db.get(News, id)
+        article = db_sess.get(News, id)
 
         if not article:
             flash('Новость не найдена', 'danger')
@@ -123,11 +118,11 @@ def moderate_news_id(id):
 
             article.moderated_at = datetime.datetime.now()
             article.moderated_by = current_user.id
-            db.commit()
+            db_sess.commit()
 
             return redirect(url_for('moder.moderation'))
 
         # Если метод GET — просто отдаем страницу (передавать form=form больше не нужно!)
         return render_template('view_news.html', news=article)
     finally:
-        db.close()
+        db_sess.close()

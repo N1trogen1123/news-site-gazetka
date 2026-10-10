@@ -3,6 +3,9 @@ from data import db_session
 from flask import Blueprint, request, redirect, render_template, url_for, abort, flash, jsonify
 from flask_login import current_user, login_required
 
+from sqlalchemy import or_, select
+from sqlalchemy.orm import joinedload
+
 from data.news import News
 from data.categories import Categories
 
@@ -17,37 +20,36 @@ def index():
         search_query = request.args.get('q', '')
         selected_category = request.args.get('category', '')
 
-        # Базовый запрос
-        query = db_sess.query(News)
+        stmt = (
+            select(News)
+            .options(
+                joinedload(News.author),
+                joinedload(News.category)
+            )
+            .where(News.status == 'Опубликовано')
+        )
 
-        # Фильтрация по категории
         if selected_category and selected_category.isdigit():
-            query = query.filter(News.category_id == int(selected_category))
-
-        # Поиск по заголовку и содержимому
+            stmt = stmt.where(News.category_id == int(selected_category))
+        
         if search_query:
-            query = query.filter(
+            stmt = stmt.where(
                 or_(
                     News.title.contains(search_query),
                     News.content.contains(search_query)
                 )
             )
 
-        # Сортировка по дате (сначала новые) и только опубликованные
-        news_list = query.filter(News.status == 'Опубликовано').order_by(News.published_at.desc()).all()
+        stmt = stmt.order_by(News.published_at.desc())
 
-        # Получаем все категории для фильтра
-        categories = db_sess.query(Categories).all()
+        news_list = db_sess.scalars(stmt).all()
+
+        categories = db_sess.scalars(select(Categories)).all()
 
         # Для каждой новости добавляем имя автора и категории
         for news in news_list:
-            # Получаем автора
-            author = db_sess.query(User).filter(User.id == news.author_id).first()
-            news.author_name = author.username if author else 'Неизвестный автор'
-
-            # Получаем категорию
-            category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
-            news.category_name = category.name if category else 'Без категории'
+            news.author_name = news.author.username if news.author else 'Неизвестный автор'
+            news.category_name = news.category.name if news.category else 'Без категории'
 
         return render_template('index.html',
                                news_list=news_list,
@@ -65,11 +67,12 @@ def dashboard():
     """Дашборд пользователя"""
     db_sess = db_session.create_session()
     try:
-        news_list = db_sess.query(News).filter(News.author_id == current_user.id).all()
-
-        for news in news_list:
-            category = db_sess.query(Categories).filter(Categories.id == news.category_id).first()
-            news.category_name = category.name if category else 'Без категории'
+        stmt = (
+            select(News)
+            .options(joinedload(News.category))
+            .where(News.author_id == current_user.id)
+        )
+        news_list = db_sess.scalars(stmt).all()
 
         status_badges = {
             'Черновик': 'bg-secondary',
