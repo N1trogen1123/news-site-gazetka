@@ -1,6 +1,8 @@
 import datetime
 import sqlalchemy.exc
 
+from sqlalchemy import select
+
 from data import db_session
 
 from flask import Blueprint, request, redirect, render_template, url_for, abort, flash
@@ -11,20 +13,22 @@ from forms.RegisterForm import RegisterForm
 
 from data.users import User
 
+from werkzeug.security import generate_password_hash
+
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return render_template('home.dashboard')
-    
+
     form = LoginForm()
     if form.validate_on_submit():
         db_sess = db_session.create_session()
         try:
-            user = db_sess.query(User).filter(User.email == form.email.data)
+            user = db_sess.scalars(select(User).where(User.email == form.email.data)).first()
 
-            if user and user.check_password(form.password_data):
+            if user and user.check_password(form.password.data):
                 login_user(user, remember=form.remember_me.data)
                 next_page = request.args.get('next')
                 return redirect(next_page or url_for('home.index'))
@@ -43,7 +47,7 @@ def register():
     if form.validate_on_submit():
         db_sess = db_session.create_session()
         try:
-            user = db_sess.query(User).filter(User.email == form.email.data).first()
+            user = db_sess.scalars(select(User).where(User.email == form.email.data)).first()
             if user:
                 return render_template('register.html', form=form, message='Такая почта уже зарегистрирована')
             

@@ -10,6 +10,7 @@ from blueprints.auth import auth_bp
 from blueprints.home import home_bp
 from blueprints.news import news_bp
 from blueprints.moderation import mod_bp
+from blueprints.rest_api import api_bp
 
 from admin_panel import init_admin
 
@@ -26,6 +27,7 @@ def create_app():
     app.register_blueprint(home_bp)
     app.register_blueprint(news_bp)
     app.register_blueprint(mod_bp)
+    app.register_blueprint(api_bp)
 
     app.config['UPLOAD_FOLDER'] = 'static/uploads/news'
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -40,7 +42,7 @@ def create_app():
         finally:
             db_sess.close()
      
-        init_admin(app)
+    init_admin(app)
 
     return app
 

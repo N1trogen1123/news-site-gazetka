@@ -9,6 +9,8 @@ from data.news import News
 from data.categories import Categories
 from data.moderation_logs import ModerationLogs
 
+from data.db_session import db_session
+
 class AdminAccess(ModelView):
     def is_accessible(self):
         return current_user.is_authenticated and current_user.level == 'admin' and current_user.is_banned != 1
@@ -52,10 +54,8 @@ def init_admin(app):
     """Функция для привязки админки к приложению в фабрике"""
     admin.init_app(app)
     
-    admin_db_session = db_session.create_session()
-    
     # Добавляем вьюшки
-    admin.add_view(UserAdmin(User, admin_db_session, name='Пользователи', endpoint='admin_users'))
-    admin.add_view(NewsAdmin(News, admin_db_session, name='Новости', endpoint='admin_news'))
-    admin.add_view(CategoriesAdmin(Categories, admin_db_session, name='Категории', endpoint='admin_categories'))
-    admin.add_view(ModerationLogsAdmin(ModerationLogs, admin_db_session, name='Логи модерации', endpoint='mod_logs'))
+    admin.add_view(UserAdmin(User, db_session, name='Пользователи', endpoint='admin_users'))
+    admin.add_view(NewsAdmin(News, db_session, name='Новости', endpoint='admin_news'))
+    admin.add_view(CategoriesAdmin(Categories, db_session, name='Категории', endpoint='admin_categories'))
+    admin.add_view(ModerationLogsAdmin(ModerationLogs, db_session, name='Логи модерации', endpoint='mod_logs'))

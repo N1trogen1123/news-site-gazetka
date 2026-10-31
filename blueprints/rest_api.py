@@ -1,10 +1,16 @@
 from flask import Blueprint, jsonify, request
 
 import sqlalchemy.exc
+from sqlalchemy import select
 
 from data.users import User
 from data.news import News
 from data.categories import Categories
+
+from data import db_session
+
+import datetime
+
 
 api_bp = Blueprint('api', __name__)
 
@@ -12,7 +18,7 @@ api_bp = Blueprint('api', __name__)
 def api_get_news():
     db_sess = db_session.create_session()
     try:
-        news = db_sess.query(News).filter(News.status == 'Опубликовано').all()
+        news = db_sess.scalars(select(News).where(News.status == 'Опубликовано')).all()
         return jsonify(
             {
                 'news': [
@@ -34,9 +40,11 @@ def api_get_news():
 def api_get_one_news(news_id):
     db_sess = db_session.create_session()
     try:
-        item = db_sess.query(News).filter(
+        stmt = select(News).where(
             News.id == news_id,
-            News.status == 'Опубликовано').first()
+            News.status == 'Опубликовано'
+        )
+        item = db_sess.scalar(stmt)
         if not item:
             return jsonify({'error': 'Not found'}), 404
         return jsonify(
@@ -104,7 +112,7 @@ def api_created_news():
 def api_delete_news(news_id):
     db_sess = db_session.create_session()
     try:
-        item = db_sess.query(News).get(news_id)
+        item = db_sess.get(News, news_id)
         if not item:
             return jsonify({'error': 'Not found'}), 404
         db_sess.delete(item)
@@ -118,7 +126,7 @@ def api_delete_news(news_id):
 def api_get_users():
     db_sess = db_session.create_session()
     try:
-        users = db_sess.query(User).all()
+        users = db_sess.get(User).all()
         return jsonify(
             {
                 'users': [
@@ -135,7 +143,7 @@ def api_get_users():
 def api_get_one_user(user_id):
     db_sess = db_session.create_session()
     try:
-        user = db_sess.query(User).get(user_id)
+        user = db_sess.get(User, user_id)
         if not user:
             return jsonify({'error': 'user not found'}), 404
         return jsonify(
@@ -151,7 +159,7 @@ def api_get_one_user(user_id):
 def api_get_categories():
     db_sess = db_session.create_session()
     try:
-        categories = db_sess.query(Categories).order_by(Categories.name).all()
+        categories = db_sess.scalars(select(Categories).order_by(Categories.name)).all()
         return jsonify(
             {
                 'categories': [
@@ -168,7 +176,7 @@ def api_get_categories():
 def api_get_one_category(category_id):
     db_sess = db_session.create_session()
     try:
-        category = db_sess.query(Categories).get(category_id)
+        category = db_sess.get(Categories, category_id)
         if not category:
             return jsonify({'error': 'Not Found'}), 404
         return jsonify(
