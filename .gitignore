@@ -1,2 +1,7 @@
-/.venv/
+venv/
 /.idea/
+.vscode/
+**/__pycache__/
+/db/
+/static/uploads/
+

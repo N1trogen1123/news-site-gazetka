@@ -12,7 +12,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">
+        <a class="navbar-brand fw-bold" href="{{ url_for('home.index') }}">
             <i class="bi bi-newspaper"></i> Gazetka
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -21,7 +21,7 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav ms-auto align-items-center gap-2">
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('index') }}">
+                    <a class="nav-link" href="{{ url_for('home.index') }}">
                         <i class="bi bi-house"></i> Главная
                     </a>
                 </li>
@@ -29,25 +29,25 @@
                 {% if current_user.is_authenticated %}
                 {% if current_user.is_banned == 0 %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('add_news') }}">
+                    <a class="nav-link" href="{{ url_for('news.add_news') }}">
                         <i class="bi bi-plus-circle"></i> Добавить
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <a class="nav-link" href="{{ url_for('home.dashboard') }}">
                         <i class="bi bi-file-earmark-text"></i> Мои статьи
                     </a>
                 </li>
                 {% if current_user.level in ['moderator', 'admin'] %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('moderation') }}">
+                    <a class="nav-link" href="{{ url_for('mod.moderation') }}">
                         <i class="bi bi-shield-check"></i> Модерация
                     </a>
                 </li>
                 {% endif %}
                 {% if current_user.level == 'admin' %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('admin.index') }}">
+                    <a class="nav-link" href="{{ url_for('home.index') }}">
                         <i class="bi bi-shield-lock"></i> Админ-панель
                     </a>
                 </li>
@@ -63,7 +63,7 @@
             </span>
                 </li>
                 <li class="nav-item">
-                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('logout') }}">
+                    <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">
                         <i class="bi bi-box-arrow-right"></i> Выйти
                     </a>
                 </li>
@@ -71,12 +71,12 @@
                 {% else %}
                 {# Кнопки для неавторизованных #}
                 <li class="nav-item">
-                    <a class="btn btn-outline-light btn-sm me-1" href="{{ url_for('login') }}">
+                    <a class="btn btn-outline-light btn-sm me-1" href="{{ url_for('auth.login') }}">
                         <i class="bi bi-box-arrow-in-right"></i> Войти
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="btn btn-primary btn-sm" href="{{ url_for('register') }}">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('auth.register') }}">
                         <i class="bi bi-person-plus"></i> Регистрация
                     </a>
                 </li>

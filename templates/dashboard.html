@@ -7,7 +7,7 @@
     <h1 class="text-white fw-bold mb-0">
         <i class="bi bi-file-earmark-text"></i> Мои статьи
     </h1>
-    <a href="{{ url_for('add_news') }}" class="btn btn-primary">
+    <a href="{{ url_for('news.add_news') }}" class="btn btn-primary">
         <i class="bi bi-plus-circle"></i> Добавить новость
     </a>
 </div>
@@ -31,7 +31,7 @@
                         <div class="col">
                             <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                                 <h5 class="text-white mb-0">
-                                    <a href="{{ url_for('view_news', id=article.id) }}" class="text-white text-decoration-none">
+                                    <a href="{{ url_for('news.view_news', id=article.id) }}" class="text-white text-decoration-none">
                                         {{ article.title }}
                                     </a>
                                 </h5>
@@ -76,7 +76,7 @@
         <i class="bi bi-inbox text-white-50" style="font-size: 4rem;"></i>
         <h4 class="text-white mt-3">У вас пока нет статей</h4>
         <p class="text-white-50">Создайте свою первую новость!</p>
-        <a href="{{ url_for('add_news') }}" class="btn btn-primary btn-lg">
+        <a href="{{ url_for('news.add_news') }}" class="btn btn-primary btn-lg">
             <i class="bi bi-plus-circle"></i> Добавить новость
         </a>
     </div>
