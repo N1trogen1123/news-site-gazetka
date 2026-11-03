@@ -40,7 +40,7 @@
                 </li>
                 {% if current_user.level in ['moderator', 'admin'] %}
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('mod.moderation') }}">
+                    <a class="nav-link" href="{{ url_for('moder.moderation') }}">
                         <i class="bi bi-shield-check"></i> Модерация
                     </a>
                 </li>

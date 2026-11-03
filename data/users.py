@@ -9,9 +9,10 @@ from datetime import datetime
 
 
 class UserLevel(str, Enum):
-    USER = "user"
-    MODERATOR = "moderator"
-    ADMIN = "admin"
+    USER = user = "user"
+    MODERATOR = moderator = "moderator"
+    ADMIN = admin = "admin"
+
 
 
 class User(SqlAlchemyBase, UserMixin, SerializerMixin):
